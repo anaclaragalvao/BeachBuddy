@@ -21,7 +21,5 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path("", include("main.urls")),
     path("accounts/", include("django.contrib.auth.urls")),
-    # Rota de cadastro simples
-    path("accounts/register/", views.signup, name="signup"),
-    #path("", views.home, name="home"),
+    path("accounts/register/", views.signup_aluno, name="signup"),
 ]

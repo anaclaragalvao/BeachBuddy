@@ -1,11 +1,11 @@
 {% extends "base.html" %}
-{% block title %}Cadastro{% endblock %}
+{% block title %}Cadastro de Aluno{% endblock %}
 {% block content %}
-<h1>Criar conta</h1>
-<form method="post">
+<h1>Cadastro de Aluno</h1>
+<form method="post" novalidate>
     {% csrf_token %}
     {{ form.as_p }}
-    <button type="submit">Cadastrar</button>
+    <button type="submit">Criar conta</button>
 </form>
 <p>Já tem conta? <a href="{% url 'login' %}">Entrar</a></p>
 {% endblock %}

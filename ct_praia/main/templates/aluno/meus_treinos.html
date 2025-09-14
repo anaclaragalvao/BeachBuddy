@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Meus Treinos{% endblock %}
+{% block content %}
+<h1>Meus Treinos</h1>
+{% if inscricoes %}
+<ul>
+    {% for i in inscricoes %}
+    <li>
+        {{ i.treino.modalidade }} — {{ i.treino.data }} {{ i.treino.hora_inicio }}
+        (CT: {{ i.treino.ct.nome }}) — Status: {{ i.get_status_display }}
+    </li>
+    {% endfor %}
+</ul>
+{% else %}
+<p>Você ainda não tem inscrições.</p>
+{% endif %}
+{% endblock %}
