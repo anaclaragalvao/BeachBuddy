@@ -12,11 +12,16 @@
     <header>
         <nav>
             {% if user.is_authenticated %}
+            {% if user.usuario.tipo == 'ALUNO' %}
             <a href="{% url 'meus_treinos' %}">Meus Treinos</a>
+            {% elif user.usuario.tipo == 'PROFESSOR' %}
+            <a href="{% url 'prof_dashboard' %}">Dashboard Professor</a>
+            {% endif %}
             <a href="{% url 'logout' %}">Sair</a>
             {% else %}
             <a href="{% url 'login' %}">Entrar</a>
             <a href="{% url 'signup_aluno' %}">Cadastro Aluno</a>
+            <a href="{% url 'signup_professor' %}">Cadastro Professor</a>
             {% endif %}
         </nav>
     </header>
