@@ -6,6 +6,7 @@ from django.db import transaction
 
 from .forms import SignupAlunoForm, SignupProfessorForm
 from .models import Usuario, Inscricao
+from .decorators import aluno_required, professor_required
 
 AUTO_LOGIN = True  # troque para False se quiser redirecionar pro login
 
@@ -71,7 +72,7 @@ def signup_professor(request):
     return render(request, "registration/signup_professor.html", {"form": form})
 
 
-@user_passes_test(is_professor, login_url="/accounts/login/")
+@professor_required
 def prof_dashboard(request):
     # Dashboard mínimo: lista de treinos que o professor ministra
     treinos = (
@@ -80,7 +81,7 @@ def prof_dashboard(request):
     )
     return render(request, "professor/dashboard.html", {"treinos": treinos})
 
-@user_passes_test(is_aluno, login_url="/accounts/login/")
+@aluno_required
 def meus_treinos(request):
     inscricoes = (
         Inscricao.objects
