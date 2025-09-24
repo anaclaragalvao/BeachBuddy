@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Treino{% endblock %}
+{% block content %}
+<h1>{% if object %}Editar Treino{% else %}Novo Treino{% endif %}</h1>
+<form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Salvar</button>
+    <a href="{% url 'treino_list' %}">Cancelar</a>
+</form>
+{% if form.non_field_errors %}
+<div class="errors">{{ form.non_field_errors }}</div>
+{% endif %}
+{% endblock %}

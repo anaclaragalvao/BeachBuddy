@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Excluir Treino{% endblock %}
+{% block content %}
+<h1>Confirmar exclusão</h1>
+<p>Tem certeza que deseja excluir o treino <strong>{{ object.modalidade }}</strong> em {{ object.data }} {{
+    object.hora_inicio }}?</p>
+<form method="post">
+    {% csrf_token %}
+    <button type="submit">Confirmar</button>
+    <a href="{% url 'treino_detail' object.pk %}">Cancelar</a>
+</form>
+{% endblock %}

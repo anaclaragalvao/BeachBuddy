@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Detalhe do Treino{% endblock %}
+{% block content %}
+<h1>{{ object.modalidade }}</h1>
+<p><strong>CT:</strong> {{ object.ct.nome }}</p>
+<p><strong>Data:</strong> {{ object.data }}</p>
+<p><strong>Horário:</strong> {{ object.hora_inicio }} - {{ object.hora_fim }}</p>
+<p><strong>Vagas:</strong> {{ object.vagas }}</p>
+<p><strong>Nível:</strong> {{ object.nivel }}</p>
+{% if object.observacoes %}
+<p><strong>Observações:</strong> {{ object.observacoes }}</p>
+{% endif %}
+<p>
+    <a href="{% url 'treino_update' object.pk %}">Editar</a> |
+    <a href="{% url 'treino_delete' object.pk %}">Excluir</a> |
+    <a href="{% url 'treino_list' %}">Voltar</a>
+</p>
+{% endblock %}

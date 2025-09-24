@@ -16,12 +16,16 @@
             <a href="{% url 'meus_treinos' %}">Meus Treinos</a>
             {% elif user.usuario.tipo == 'PROFESSOR' %}
             <a href="{% url 'prof_dashboard' %}">Dashboard Professor</a>
+            <a href="{% url 'treino_list' %}">Meus Treinos</a>
+            {% elif user.usuario.tipo == "GERENTE" %}
+            <a href="{% url 'ct_create' %}">Novo CT</a>
             {% endif %}
             <a href="{% url 'logout' %}">Sair</a>
             {% else %}
             <a href="{% url 'login' %}">Entrar</a>
             <a href="{% url 'signup_aluno' %}">Cadastro Aluno</a>
             <a href="{% url 'signup_professor' %}">Cadastro Professor</a>
+            <a href="{% url 'ct_list' %}">CTs</a>
             {% endif %}
         </nav>
     </header>

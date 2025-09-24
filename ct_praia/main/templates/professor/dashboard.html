@@ -2,15 +2,17 @@
 {% block title %}Dashboard do Professor{% endblock %}
 {% block content %}
 <h1>Dashboard do Professor</h1>
+<p><a href="{% url 'treino_list' %}">Gerenciar meus treinos</a></p>
 {% if treinos %}
-  <ul>
-    {% for t in treinos %}
-      <li>
-        <strong>{{ t.modalidade }}</strong> — {{ t.ct.nome }} — {{ t.data }} {{ t.hora_inicio }}-{{ t.hora_fim }} — Vagas: {{ t.vagas }} — Nível: {{ t.nivel }}
-      </li>
-    {% endfor %}
-  </ul>
+<ul>
+  {% for t in treinos %}
+  <li>
+    <strong>{{ t.modalidade }}</strong> — {{ t.ct.nome }} — {{ t.data }} {{ t.hora_inicio }}-{{ t.hora_fim }} — Vagas:
+    {{ t.vagas }} — Nível: {{ t.nivel }}
+  </li>
+  {% endfor %}
+</ul>
 {% else %}
-  <p>Você ainda não possui treinos cadastrados.</p>
+<p>Você ainda não possui treinos cadastrados.</p>
 {% endif %}
 {% endblock %}

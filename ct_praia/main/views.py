@@ -3,6 +3,12 @@ from django.contrib import messages
 from django.contrib.auth import authenticate, login
 from django.contrib.auth.decorators import user_passes_test
 from django.db import transaction
+from django.urls import reverse_lazy
+
+from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
+from .models import CentroTreinamento, Treino
+from .forms import CentroTreinamentoForm, TreinoForm
+from .mixins import ProfOrManagerRequiredMixin, ProfessorRequiredMixin
 
 from .forms import SignupAlunoForm, SignupProfessorForm
 from .models import Usuario, Inscricao
@@ -26,6 +32,13 @@ def is_aluno(user):
 
 def is_professor(user):
     return user.is_authenticated and hasattr(user, "usuario") and user.usuario.tipo == Usuario.Tipo.PROFESSOR
+
+def is_prof_or_manager(user):
+    if not user.is_authenticated:
+        return False
+    if user.is_superuser:
+        return True
+    return hasattr(user, "usuario") and user.usuario.tipo in (Usuario.Tipo.PROFESSOR, Usuario.Tipo.GERENTE)
 
 @transaction.atomic
 def signup_aluno(request):
@@ -90,3 +103,121 @@ def meus_treinos(request):
         .order_by("treino__data", "treino__hora_inicio")
     )
     return render(request, "aluno/meus_treinos.html", {"inscricoes": inscricoes})
+
+class CTListView(ListView):
+    model = CentroTreinamento
+    template_name = "ct/ct_list.html"
+    context_object_name = "cts"
+
+class CTDetailView(DetailView):
+    model = CentroTreinamento
+    template_name = "ct/ct_detail.html"
+    context_object_name = "ct"
+
+class CTCreateView(ProfOrManagerRequiredMixin, CreateView):
+    model = CentroTreinamento
+    form_class = CentroTreinamentoForm
+    template_name = "ct/ct_form.html"
+    success_url = reverse_lazy("ct_list")
+
+class CTUpdateView(ProfOrManagerRequiredMixin, UpdateView):
+    model = CentroTreinamento
+    form_class = CentroTreinamentoForm
+    template_name = "ct/ct_form.html"
+    success_url = reverse_lazy("ct_list")
+
+class CTDeleteView(ProfOrManagerRequiredMixin, DeleteView):
+    model = CentroTreinamento
+    template_name = "ct/ct_confirm_delete.html"
+    success_url = reverse_lazy("ct_list")
+
+
+# --- Treino CRUD (Professor) ---
+class TreinoListView(ProfessorRequiredMixin, ListView):
+    model = Treino
+    template_name = "professor/treino_list.html"
+    context_object_name = "treinos"
+
+    def get_queryset(self):
+        qs = Treino.objects.select_related("ct").filter(professor=self.request.user)
+        data = self.request.GET.get("data")
+        if data:
+            qs = qs.filter(data=data)
+        return qs.order_by("data", "hora_inicio")
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["selected_date"] = self.request.GET.get("data", "")
+        return ctx
+
+
+class TreinoCreateView(ProfessorRequiredMixin, CreateView):
+    model = Treino
+    form_class = TreinoForm
+    template_name = "professor/treino_form.html"
+    success_url = reverse_lazy("treino_list")
+
+    def form_valid(self, form):
+        form.instance.professor = self.request.user
+        # validação de conflito de horário para mesmo professor e mesmo CT na mesma data
+        data = form.cleaned_data.get("data")
+        ct = form.cleaned_data.get("ct")
+        hi = form.cleaned_data.get("hora_inicio")
+        hf = form.cleaned_data.get("hora_fim")
+        if data and ct and hi and hf:
+            overlap = Treino.objects.filter(
+                professor=self.request.user,
+                ct=ct,
+                data=data,
+                hora_inicio__lt=hf,
+                hora_fim__gt=hi,
+            ).exists()
+            if overlap:
+                form.add_error(None, "Conflito de horário com outro treino seu neste CT.")
+                return self.form_invalid(form)
+        return super().form_valid(form)
+
+
+class TreinoUpdateView(ProfessorRequiredMixin, UpdateView):
+    model = Treino
+    form_class = TreinoForm
+    template_name = "professor/treino_form.html"
+    success_url = reverse_lazy("treino_list")
+
+    def get_queryset(self):
+        return Treino.objects.filter(professor=self.request.user)
+
+    def form_valid(self, form):
+        data = form.cleaned_data.get("data")
+        ct = form.cleaned_data.get("ct")
+        hi = form.cleaned_data.get("hora_inicio")
+        hf = form.cleaned_data.get("hora_fim")
+        if data and ct and hi and hf:
+            overlap = Treino.objects.filter(
+                professor=self.request.user,
+                ct=ct,
+                data=data,
+                hora_inicio__lt=hf,
+                hora_fim__gt=hi,
+            ).exclude(pk=self.object.pk).exists()
+            if overlap:
+                form.add_error(None, "Conflito de horário com outro treino seu neste CT.")
+                return self.form_invalid(form)
+        return super().form_valid(form)
+
+
+class TreinoDeleteView(ProfessorRequiredMixin, DeleteView):
+    model = Treino
+    template_name = "professor/treino_confirm_delete.html"
+    success_url = reverse_lazy("treino_list")
+
+    def get_queryset(self):
+        return Treino.objects.filter(professor=self.request.user)
+
+
+class TreinoDetailView(ProfessorRequiredMixin, DetailView):
+    model = Treino
+    template_name = "professor/treino_detail.html"
+
+    def get_queryset(self):
+        return Treino.objects.select_related("ct").filter(professor=self.request.user)

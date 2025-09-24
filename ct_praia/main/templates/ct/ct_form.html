@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}{% if view.object %}Editar CT{% else %}Novo CT{% endif %}{% endblock %}
+{% block content %}
+<h1>{% if view.object %}Editar CT{% else %}Novo CT{% endif %}</h1>
+<form method="post" novalidate>
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Salvar</button>
+    <a href="{% url 'ct_list' %}">Cancelar</a>
+</form>
+{% endblock %}
