@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Escolher Treino{% endblock %}
+{% block content %}
+<h1>{{ ct.nome }} — Treinos disponíveis</h1>
+{% if treinos %}
+<ul>
+  {% for t in treinos %}
+    <li>
+      <strong>{{ t.modalidade }}</strong> — {{ t.data }} {{ t.hora_inicio }}-{{ t.hora_fim }} — Vagas: {{ t.vagas }} ({{ t.confirmadas }} confirmadas) — Nível: {{ t.nivel }}
+      {% if t.id in inscritos_ids %}
+        — <em>Inscrito</em>
+      {% elif t.confirmadas >= t.vagas %}
+        — <strong>Lotado</strong>
+      {% else %}
+        <form method="post" action="{% url 'inscricao_criar' t.pk %}" style="display:inline">
+          {% csrf_token %}
+          <button type="submit">Confirmar Presença</button>
+        </form>
+      {% endif %}
+    </li>
+  {% endfor %}
+</ul>
+{% else %}
+<p>Nenhum treino futuro disponível para este CT.</p>
+{% endif %}
+<p><a href="{% url 'novo_treino_ct' %}">Voltar</a></p>
+{% endblock %}

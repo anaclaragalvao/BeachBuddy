@@ -14,11 +14,14 @@
             {% if user.is_authenticated %}
             {% if user.usuario.tipo == 'ALUNO' %}
             <a href="{% url 'meus_treinos' %}">Meus Treinos</a>
+            <a href="{% url 'ct_list' %}">CTs</a>
             {% elif user.usuario.tipo == 'PROFESSOR' %}
             <a href="{% url 'prof_dashboard' %}">Dashboard Professor</a>
             <a href="{% url 'treino_list' %}">Meus Treinos</a>
+            <a href="{% url 'ct_list' %}">CTs</a>
             {% elif user.usuario.tipo == "GERENTE" %}
             <a href="{% url 'ct_create' %}">Novo CT</a>
+            <a href="{% url 'ct_list' %}">CTs</a>
             {% endif %}
             <a href="{% url 'logout' %}">Sair</a>
             {% else %}
@@ -31,6 +34,13 @@
     </header>
 
     <main>
+        {% if messages %}
+        <ul class="messages">
+            {% for message in messages %}
+            <li>{{ message }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
         {% block content %}
         <h1>Bem-vindo ao Gerenciador Beach Buddy</h1>
         <p>Acesse o menu acima para navegar.</p>

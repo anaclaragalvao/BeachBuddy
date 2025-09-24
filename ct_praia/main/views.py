@@ -1,8 +1,10 @@
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth import authenticate, login
 from django.contrib.auth.decorators import user_passes_test
 from django.db import transaction
+from django.db.models import Count, Q
+from django.utils import timezone
 from django.urls import reverse_lazy
 
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
@@ -104,6 +106,82 @@ def meus_treinos(request):
     )
     return render(request, "aluno/meus_treinos.html", {"inscricoes": inscricoes})
 
+
+# --- Inscrições (Aluno) ---
+@aluno_required
+def inscricao_criar(request, treino_id: int):
+    if request.method != "POST":
+        return redirect("meus_treinos")
+    treino = get_object_or_404(Treino, pk=treino_id)
+    # Verifica capacidade (inscrições confirmadas)
+    confirmadas = Inscricao.objects.filter(
+        treino=treino, status=Inscricao.Status.CONFIRMADA
+    ).count()
+
+    insc = Inscricao.objects.filter(treino=treino, aluno=request.user).first()
+    if insc:
+        if insc.status == Inscricao.Status.CANCELADA:
+            if confirmadas >= treino.vagas:
+                messages.error(request, "Treino lotado. Não foi possível reativar a inscrição.")
+                return redirect("meus_treinos")
+            insc.status = Inscricao.Status.CONFIRMADA
+            insc.save(update_fields=["status"])
+            messages.success(request, "Inscrição reativada e confirmada!")
+        else:
+            messages.info(request, "Você já está inscrito neste treino.")
+    else:
+        if confirmadas >= treino.vagas:
+            messages.error(request, "Treino lotado. Não foi possível realizar a inscrição.")
+            return redirect("meus_treinos")
+        Inscricao.objects.create(
+            treino=treino, aluno=request.user, status=Inscricao.Status.CONFIRMADA
+        )
+        messages.success(request, "Inscrição realizada com sucesso!")
+    return redirect("meus_treinos")
+
+
+@aluno_required
+def inscricao_cancelar(request, pk: int):
+    if request.method != "POST":
+        return redirect("meus_treinos")
+    insc = get_object_or_404(Inscricao, pk=pk, aluno=request.user)
+    if insc.status != Inscricao.Status.CANCELADA:
+        insc.status = Inscricao.Status.CANCELADA
+        insc.save(update_fields=["status"])
+        messages.success(request, "Inscrição cancelada.")
+    else:
+        messages.info(request, "Inscrição já estava cancelada.")
+    return redirect("meus_treinos")
+
+
+@aluno_required
+def novo_treino_escolher_ct(request):
+    cts = CentroTreinamento.objects.all().order_by("nome")
+    return render(request, "aluno/novo_treino_escolher_ct.html", {"cts": cts})
+
+
+@aluno_required
+def novo_treino_escolher_treino(request, ct_id: int):
+    ct = get_object_or_404(CentroTreinamento, pk=ct_id)
+    today = timezone.localdate()
+    treinos = (
+        Treino.objects.filter(ct=ct, data__gte=today)
+        .select_related("ct", "professor")
+        .annotate(confirmadas=Count("inscricoes", filter=Q(inscricoes__status=Inscricao.Status.CONFIRMADA)))
+        .order_by("data", "hora_inicio")
+    )
+    inscritos_ids = (
+        Inscricao.objects.filter(
+            aluno=request.user, status__in=[Inscricao.Status.PENDENTE, Inscricao.Status.CONFIRMADA]
+        ).values_list("treino_id", flat=True)
+    )
+    context = {
+        "ct": ct,
+        "treinos": treinos,
+        "inscritos_ids": list(inscritos_ids),
+    }
+    return render(request, "aluno/novo_treino_escolher_treino.html", context)
+
 class CTListView(ListView):
     model = CentroTreinamento
     template_name = "ct/ct_list.html"
@@ -113,6 +191,27 @@ class CTDetailView(DetailView):
     model = CentroTreinamento
     template_name = "ct/ct_detail.html"
     context_object_name = "ct"
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        today = timezone.localdate()
+        treinos = (
+            self.object.treinos
+            .select_related("ct", "professor")
+            .annotate(confirmadas=Count("inscricoes", filter=Q(inscricoes__status=Inscricao.Status.CONFIRMADA)))
+            .filter(data__gte=today)
+            .order_by("data", "hora_inicio")
+        )
+        ctx["treinos"] = list(treinos)
+        if self.request.user.is_authenticated:
+            inscritos_ids = Inscricao.objects.filter(
+                aluno=self.request.user,
+                status__in=[Inscricao.Status.PENDENTE, Inscricao.Status.CONFIRMADA],
+            ).values_list("treino_id", flat=True)
+            ctx["inscritos_ids"] = list(inscritos_ids)
+        else:
+            ctx["inscritos_ids"] = []
+        return ctx
 
 class CTCreateView(ProfOrManagerRequiredMixin, CreateView):
     model = CentroTreinamento

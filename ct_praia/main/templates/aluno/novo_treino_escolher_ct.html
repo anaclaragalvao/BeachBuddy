@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Escolher CT{% endblock %}
+{% block content %}
+<h1>Escolha um Centro de Treinamento</h1>
+<ul>
+  {% for ct in cts %}
+  <li>
+    <a href="{% url 'novo_treino_escolher_treino' ct.id %}">{{ ct.nome }}</a>
+  </li>
+  {% empty %}
+  <li>Nenhum CT disponível.</li>
+  {% endfor %}
+</ul>
+<p><a href="{% url 'meus_treinos' %}">Voltar</a></p>
+{% endblock %}

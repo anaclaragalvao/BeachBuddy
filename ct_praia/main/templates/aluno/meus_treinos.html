@@ -2,12 +2,19 @@
 {% block title %}Meus Treinos{% endblock %}
 {% block content %}
 <h1>Meus Treinos</h1>
+<p><a href="{% url 'novo_treino_ct' %}">+ Novo treino</a></p>
 {% if inscricoes %}
 <ul>
     {% for i in inscricoes %}
     <li>
         {{ i.treino.modalidade }} — {{ i.treino.data }} {{ i.treino.hora_inicio }}
         (CT: {{ i.treino.ct.nome }}) — Status: {{ i.get_status_display }}
+        {% if i.status != 'CANCELADA' %}
+        <form method="post" action="{% url 'inscricao_cancelar' i.pk %}" style="display:inline">
+            {% csrf_token %}
+            <button type="submit">Cancelar</button>
+        </form>
+        {% endif %}
     </li>
     {% endfor %}
 </ul>
