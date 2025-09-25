@@ -1,7 +1,7 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import get_user_model
-from .models import CentroTreinamento, Treino
+from .models import CentroTreinamento, Treino, Usuario
 
 User = get_user_model()
 
@@ -87,4 +87,30 @@ class TreinoForm(forms.ModelForm):
             "hora_fim": forms.TimeInput(attrs={"type": "time"}),
             "observacoes": forms.Textarea(attrs={"rows": 3}),
         }
+
+
+class UsuarioProfileForm(forms.ModelForm):
+    class Meta:
+        model = Usuario
+        fields = ["telefone", "nivel", "certificacoes"]
+        widgets = {
+            "certificacoes": forms.Textarea(attrs={"rows": 4}),
+        }
+
+    def __init__(self, *args, usuario_tipo=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Guarda o tipo do usuário para lógica de exibição e limpeza
+        self._usuario_tipo = usuario_tipo
+        # Se não for professor, não exibe o campo certificações
+        if usuario_tipo != Usuario.Tipo.PROFESSOR and "certificacoes" in self.fields:
+            self.fields.pop("certificacoes")
+
+    def save(self, commit=True):
+        obj = super().save(commit=False)
+        # Se não for professor, garante que certificações fique vazio
+        if getattr(self, "_usuario_tipo", None) != Usuario.Tipo.PROFESSOR:
+            obj.certificacoes = ""
+        if commit:
+            obj.save()
+        return obj
 

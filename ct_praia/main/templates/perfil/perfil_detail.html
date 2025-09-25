@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+{% block content %}
+<h1>Meu Perfil</h1>
+
+<p><strong>Usuário:</strong> {{ request.user.get_username }}</p>
+<p><strong>Nome:</strong> {{ request.user.get_full_name }}</p>
+<p><strong>E-mail:</strong> {{ request.user.email }}</p>
+
+{% if perfil %}
+<p><strong>Tipo:</strong> {{ perfil.get_tipo_display }}</p>
+<p><strong>Telefone:</strong> {{ perfil.telefone|default:'—' }}</p>
+<p><strong>Nível:</strong> {{ perfil.nivel|default:'—' }}</p>
+{% if perfil and perfil.tipo == 'PROFESSOR' %}
+<p><strong>Certificações:</strong><br>
+<pre style="white-space: pre-wrap">{{ perfil.certificacoes|default:'—' }}</pre>
+</p>
+{% endif %}
+{% endif %}
+
+<p>
+    <a href="{% url 'perfil_editar' %}">Editar perfil</a>
+</p>
+{% endblock %}

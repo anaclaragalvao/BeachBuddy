@@ -1,0 +1,13 @@
+{% extends 'base.html' %}
+{% block content %}
+<h1>Editar Perfil</h1>
+
+<form method="post">
+  {% csrf_token %}
+  <table>
+    {{ form.as_table }}
+  </table>
+  <button type="submit">Salvar</button>
+  <a href="{% url 'perfil_detail' %}">Cancelar</a>
+</form>
+{% endblock %}

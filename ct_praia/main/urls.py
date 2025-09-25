@@ -26,4 +26,7 @@ urlpatterns = [
     path("professor/treinos/<int:pk>/", views.TreinoDetailView.as_view(), name="treino_detail"),
     path("professor/treinos/<int:pk>/editar/", views.TreinoUpdateView.as_view(), name="treino_update"),
     path("professor/treinos/<int:pk>/excluir/", views.TreinoDeleteView.as_view(), name="treino_delete"),
+    # Perfil
+    path("perfil/", views.perfil_detail, name="perfil_detail"),
+    path("perfil/editar/", views.perfil_editar, name="perfil_editar"),
 ]

@@ -25,6 +25,11 @@ class Usuario(models.Model):
 		default=Tipo.ALUNO,
 	)
 
+	# Campos de perfil básicos
+	telefone = models.CharField(max_length=30, blank=True)
+	nivel = models.CharField(max_length=50, blank=True, help_text="Ex.: Iniciante, Intermediário, Avançado")
+	certificacoes = models.TextField(blank=True, help_text="Certificações (uma por linha ou texto livre)")
+
 	def __str__(self) -> str:  # pragma: no cover - simples representação
 		return f"{self.user.get_full_name() or self.user.username} ({self.get_tipo_display()})"
 

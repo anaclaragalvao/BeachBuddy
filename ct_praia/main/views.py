@@ -9,7 +9,7 @@ from django.urls import reverse_lazy
 
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
 from .models import CentroTreinamento, Treino
-from .forms import CentroTreinamentoForm, TreinoForm
+from .forms import CentroTreinamentoForm, TreinoForm, UsuarioProfileForm
 from .mixins import ProfOrManagerRequiredMixin, ProfessorRequiredMixin
 
 from .forms import SignupAlunoForm, SignupProfessorForm, SignupGerenteForm
@@ -393,3 +393,37 @@ class TreinoDetailView(ProfessorRequiredMixin, DetailView):
 
     def get_queryset(self):
         return Treino.objects.select_related("ct").filter(professor=self.request.user)
+
+
+# --- Perfil (Aluno/Professor) ---
+@login_required
+def perfil_detail(request):
+    # Apenas Aluno/Professor (ou superuser) podem ver/editar o próprio perfil
+    if not request.user.is_superuser:
+        if not hasattr(request.user, "usuario") or request.user.usuario.tipo not in (
+            Usuario.Tipo.ALUNO,
+            Usuario.Tipo.PROFESSOR,
+        ):
+            return redirect("home")
+    perfil = getattr(request.user, "usuario", None)
+    return render(request, "perfil/perfil_detail.html", {"perfil": perfil})
+
+
+@login_required
+def perfil_editar(request):
+    if not request.user.is_superuser:
+        if not hasattr(request.user, "usuario") or request.user.usuario.tipo not in (
+            Usuario.Tipo.ALUNO,
+            Usuario.Tipo.PROFESSOR,
+        ):
+            return redirect("home")
+    perfil = request.user.usuario
+    if request.method == "POST":
+        form = UsuarioProfileForm(request.POST, instance=perfil, usuario_tipo=perfil.tipo)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Perfil atualizado com sucesso!")
+            return redirect("perfil_detail")
+    else:
+        form = UsuarioProfileForm(instance=perfil, usuario_tipo=perfil.tipo)
+    return render(request, "perfil/perfil_form.html", {"form": form})
