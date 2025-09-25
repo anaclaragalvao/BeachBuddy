@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Novo CT{% endblock %}
+{% block content %}
+<h1>Novo Centro de Treinamento</h1>
+<form method="post">
+	{% csrf_token %}
+	{{ form.as_p }}
+	<button type="submit">Salvar</button>
+	<a href="{% url 'meus_cts' %}">Cancelar</a>
+    
+	{% if form.non_field_errors %}
+	<div class="errors">{{ form.non_field_errors }}</div>
+	{% endif %}
+</form>
+{% endblock %}

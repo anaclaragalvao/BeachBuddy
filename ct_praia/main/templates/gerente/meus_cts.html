@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Meus CTs{% endblock %}
+{% block content %}
+<h1>Meus CTs</h1>
+<p><a href="{% url 'novo_ct' %}">+ Novo CT</a></p>
+{% if cts %}
+<ul>
+    {% for ct in cts %}
+    <li>
+        <strong>{{ ct.nome }}</strong><br>
+        Endereço: {{ ct.endereco }}<br>
+        Contato: {{ ct.contato }}<br>
+        Modalidades: {{ ct.modalidades|linebreaksbr }}
+        <div style="margin-top: .5rem;">
+            <a href="{% url 'ct_detail' ct.pk %}">Ver página do CT</a>
+            · <a href="{% url 'ct_update' ct.pk %}">Editar</a>
+            · <a href="{% url 'ct_delete' ct.pk %}">Excluir</a>
+        </div>
+    </li>
+    {% endfor %}
+</ul>
+{% else %}
+<p>Você ainda não cadastrou nenhum CT.</p>
+{% endif %}
+{% endblock %}

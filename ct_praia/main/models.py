@@ -34,6 +34,20 @@ class CentroTreinamento(models.Model):
 	endereco = models.CharField(max_length=255)
 	contato = models.CharField(max_length=100)
 	modalidades = models.TextField(help_text="Modalidades oferecidas (texto livre)")
+	cnpj = models.CharField(
+		max_length=18,  # formato 00.000.000/0000-00
+		unique=True,
+		help_text="CNPJ do CT (com ou sem máscara)",
+	)
+	gerente = models.ForeignKey(
+		settings.AUTH_USER_MODEL,
+		on_delete=models.PROTECT,
+		related_name="cts_gerenciados",
+		null=True,
+		blank=True,
+		limit_choices_to={"usuario__tipo": Usuario.Tipo.GERENTE},
+		help_text="Usuário gerente responsável pelo CT",
+	)
 
 	class Meta:
 		verbose_name = "Centro de Treinamento"

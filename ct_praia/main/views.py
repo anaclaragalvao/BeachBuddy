@@ -12,9 +12,10 @@ from .models import CentroTreinamento, Treino
 from .forms import CentroTreinamentoForm, TreinoForm
 from .mixins import ProfOrManagerRequiredMixin, ProfessorRequiredMixin
 
-from .forms import SignupAlunoForm, SignupProfessorForm
+from .forms import SignupAlunoForm, SignupProfessorForm, SignupGerenteForm
 from .models import Usuario, Inscricao
 from .decorators import aluno_required, professor_required
+from django.contrib.auth.decorators import login_required
 
 AUTO_LOGIN = True  # troque para False se quiser redirecionar pro login
 
@@ -85,6 +86,27 @@ def signup_professor(request):
     else:
         form = SignupProfessorForm()
     return render(request, "registration/signup_professor.html", {"form": form})
+
+@transaction.atomic
+def signup_gerente(request):
+    if request.method == "POST":
+        form = SignupGerenteForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+            Usuario.objects.create(user=user, tipo=Usuario.Tipo.GERENTE)
+
+            if AUTO_LOGIN:
+                raw_pw = form.cleaned_data["password1"]
+                user = authenticate(username=user.username, password=raw_pw)
+                if user:
+                    login(request, user)
+                    messages.success(request, "Cadastro de gerente realizado! Bem-vindo(a).")
+                    return redirect("prof_dashboard")
+            messages.success(request, "Cadastro de gerente realizado! Faça login para continuar.")
+            return redirect("login")
+    else:
+        form = SignupGerenteForm()
+    return render(request, "registration/signup_gerente.html", {"form": form})
 
 
 @professor_required
@@ -219,16 +241,67 @@ class CTCreateView(ProfOrManagerRequiredMixin, CreateView):
     template_name = "ct/ct_form.html"
     success_url = reverse_lazy("ct_list")
 
+    def form_valid(self, form):
+        # Se usuário for gerente, define como gerente do CT
+        user = self.request.user
+        if hasattr(user, "usuario") and user.usuario.tipo == Usuario.Tipo.GERENTE:
+            form.instance.gerente = user
+        return super().form_valid(form)
+
 class CTUpdateView(ProfOrManagerRequiredMixin, UpdateView):
     model = CentroTreinamento
     form_class = CentroTreinamentoForm
     template_name = "ct/ct_form.html"
     success_url = reverse_lazy("ct_list")
+    
+    def get_queryset(self):
+        qs = super().get_queryset()
+        u = self.request.user
+        if u.is_superuser:
+            return qs
+        if hasattr(u, "usuario") and u.usuario.tipo == Usuario.Tipo.GERENTE:
+            return qs.filter(gerente=u)
+        return qs
 
 class CTDeleteView(ProfOrManagerRequiredMixin, DeleteView):
     model = CentroTreinamento
     template_name = "ct/ct_confirm_delete.html"
     success_url = reverse_lazy("ct_list")
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        u = self.request.user
+        if u.is_superuser:
+            return qs
+        if hasattr(u, "usuario") and u.usuario.tipo == Usuario.Tipo.GERENTE:
+            return qs.filter(gerente=u)
+        return qs
+
+
+# --- Gerente: meus CTs ---
+@login_required
+def gerente_meus_cts(request):
+    if not hasattr(request.user, "usuario") or request.user.usuario.tipo != Usuario.Tipo.GERENTE:
+        # Redireciona conforme perfil
+        return redirect("home")
+    cts = CentroTreinamento.objects.filter(gerente=request.user).order_by("nome")
+    return render(request, "gerente/meus_cts.html", {"cts": cts})
+
+
+class GerenteCTCreateView(CreateView):
+    model = CentroTreinamento
+    form_class = CentroTreinamentoForm
+    template_name = "gerente/novo_ct.html"
+    success_url = reverse_lazy("meus_cts")
+
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated or not hasattr(request.user, "usuario") or request.user.usuario.tipo != Usuario.Tipo.GERENTE:
+            return redirect("home")
+        return super().dispatch(request, *args, **kwargs)
+
+    def form_valid(self, form):
+        form.instance.gerente = self.request.user
+        return super().form_valid(form)
 
 
 # --- Treino CRUD (Professor) ---

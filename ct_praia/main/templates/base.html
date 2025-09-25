@@ -20,7 +20,8 @@
             <a href="{% url 'treino_list' %}">Meus Treinos</a>
             <a href="{% url 'ct_list' %}">CTs</a>
             {% elif user.usuario.tipo == "GERENTE" %}
-            <a href="{% url 'ct_create' %}">Novo CT</a>
+            <a href="{% url 'meus_cts' %}">Meus CTs</a>
+            <a href="{% url 'novo_ct' %}">Novo CT</a>
             <a href="{% url 'ct_list' %}">CTs</a>
             {% endif %}
             <a href="{% url 'logout' %}">Sair</a>

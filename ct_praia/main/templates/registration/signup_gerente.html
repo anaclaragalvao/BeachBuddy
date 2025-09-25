@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Cadastro de Gerente{% endblock %}
+{% block content %}
+<h1>Cadastro de Gerente</h1>
+<form method="post" novalidate>
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Criar conta</button>
+</form>
+<p>Já tem conta? <a href="{% url 'login' %}">Entrar</a></p>
+{% endblock %}
