@@ -16,8 +16,7 @@
     {% for t in treinos %}
     <li>
         <a href="{% url 'treino_detail' t.pk %}"><strong>{{ t.modalidade }}</strong></a>
-        — {{ t.ct.nome }} — {{ t.data }} {{ t.hora_inicio }}-{{ t.hora_fim }} — Vagas: {{ t.vagas }} — Nível: {{ t.nivel
-        }}
+        — {{ t.ct.nome }} — {{ t.data }} {{ t.hora_inicio }}-{{ t.hora_fim }} — Vagas: {{ t.vagas }} — Nível: {{ t.nivel }}
         [<a href="{% url 'treino_update' t.pk %}">editar</a>]
         [<a href="{% url 'treino_delete' t.pk %}">excluir</a>]
     </li>
