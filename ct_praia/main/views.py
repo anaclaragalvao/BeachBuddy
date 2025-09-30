@@ -217,14 +217,17 @@ class CTDetailView(DetailView):
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         today = timezone.localdate()
-        treinos = (
+        mostrar_todos = self.request.GET.get("all") == "1"
+        qs = (
             self.object.treinos
             .select_related("ct", "professor")
             .annotate(confirmadas=Count("inscricoes", filter=Q(inscricoes__status=Inscricao.Status.CONFIRMADA)))
-            .filter(data__gte=today)
-            .order_by("data", "hora_inicio")
         )
+        if not mostrar_todos:
+            qs = qs.filter(data__gte=today)
+        treinos = qs.order_by("data", "hora_inicio")
         ctx["treinos"] = list(treinos)
+        ctx["mostrar_todos"] = mostrar_todos
         if self.request.user.is_authenticated:
             inscritos_ids = Inscricao.objects.filter(
                 aluno=self.request.user,
