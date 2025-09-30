@@ -53,6 +53,13 @@ class CentroTreinamento(models.Model):
 		limit_choices_to={"usuario__tipo": Usuario.Tipo.GERENTE},
 		help_text="Usuário gerente responsável pelo CT",
 	)
+	professores = models.ManyToManyField(
+		settings.AUTH_USER_MODEL,
+		blank=True,
+		related_name="cts_associados",
+		limit_choices_to={"usuario__tipo": Usuario.Tipo.PROFESSOR},
+		help_text="Professores autorizados a ministrar treinos neste CT",
+	)
 
 	class Meta:
 		verbose_name = "Centro de Treinamento"
@@ -96,6 +103,12 @@ class Treino(models.Model):
 		if usr and hasattr(usr, "usuario"):
 			if usr.usuario.tipo != Usuario.Tipo.PROFESSOR:
 				raise ValidationError({"professor": "Usuário selecionado não é um PROFESSOR."})
+
+		# Professor deve estar associado ao CT selecionado
+		if self.ct_id and self.professor_id:
+			# Evita consulta se M2M não existe ainda em banco (objeto não salvo) -> usar through manager com exists
+			if not self.ct.professores.filter(pk=self.professor_id).exists():
+				raise ValidationError({"professor": "Professor não está associado a este CT."})
 
 	def __str__(self) -> str:  # pragma: no cover
 		return f"{self.modalidade} - {self.data} ({self.ct})"

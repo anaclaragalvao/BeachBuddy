@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+{% block content %}
+<h1>Professores do CT: {{ ct.nome }}</h1>
+<p><a href="{% url 'meus_cts' %}">&larr; Voltar</a></p>
+<form method="post">
+  {% csrf_token %}
+  <fieldset>
+    <legend>Selecionar Professores Autorizados</legend>
+    {{ form.professores.errors }}
+    {{ form.professores }}
+  </fieldset>
+  <button type="submit">Salvar</button>
+</form>
+
+<h2>Professores Associados</h2>
+<ul>
+  {% for p in professores %}
+    <li>{{ p.get_full_name|default:p.username }}</li>
+  {% empty %}
+    <li>Nenhum professor associado ainda.</li>
+  {% endfor %}
+</ul>
+{% endblock %}

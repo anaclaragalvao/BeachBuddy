@@ -11,9 +11,11 @@
         Endereço: {{ ct.endereco }}<br>
         Contato: {{ ct.contato }}<br>
         Modalidades: {{ ct.modalidades|linebreaksbr }}
+        <br>Professores: {% for p in ct.professores.all %}{{ p.get_full_name|default:p.username }}{% if not forloop.last %}, {% endif %}{% empty %}<em>nenhum</em>{% endfor %}
         <div style="margin-top: .5rem;">
             <a href="{% url 'ct_detail' ct.pk %}">Ver página do CT</a>
             · <a href="{% url 'ct_update' ct.pk %}">Editar</a>
+            · <a href="{% url 'gerente_ct_professores' ct.pk %}">Professores</a>
             · <a href="{% url 'ct_delete' ct.pk %}">Excluir</a>
         </div>
     </li>

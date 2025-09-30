@@ -114,3 +114,24 @@ class UsuarioProfileForm(forms.ModelForm):
             obj.save()
         return obj
 
+
+class CTProfessoresForm(forms.ModelForm):
+    """Formulário para o gerente gerenciar professores associados ao CT."""
+
+    class Meta:
+        model = CentroTreinamento
+        fields = ["professores"]
+        widgets = {
+            "professores": forms.SelectMultiple(attrs={"size": 12}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        user = kwargs.pop("user", None)
+        super().__init__(*args, **kwargs)
+        # Limita queryset a professores (já garantido pelo limit_choices_to no model, mas reforçamos)
+        from .models import Usuario  # import local para evitar import circular
+        self.fields["professores"].queryset = User.objects.filter(usuario__tipo=Usuario.Tipo.PROFESSOR).order_by("username")
+        if user and not user.is_superuser:
+            # Poderíamos ainda aplicar lógica extra se necessário
+            pass
+

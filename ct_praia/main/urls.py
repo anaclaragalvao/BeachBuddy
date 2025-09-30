@@ -13,6 +13,7 @@ urlpatterns = [
     # Gerente
     path("gerente/cts/", views.gerente_meus_cts, name="meus_cts"),
     path("gerente/cts/novo/", views.GerenteCTCreateView.as_view(), name="novo_ct"),
+    path("gerente/cts/<int:pk>/professores/", views.gerente_ct_professores, name="gerente_ct_professores"),
     # Inscrições (Aluno)
     path("aluno/inscrever/<int:treino_id>/", views.inscricao_criar, name="inscricao_criar"),
     path("aluno/inscricao/<int:pk>/cancelar/", views.inscricao_cancelar, name="inscricao_cancelar"),

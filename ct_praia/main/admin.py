@@ -14,8 +14,10 @@ class UsuarioAdmin(admin.ModelAdmin):
 
 @admin.register(CentroTreinamento)
 class CentroTreinamentoAdmin(admin.ModelAdmin):
-	list_display = ("nome", "endereco", "contato")
-	search_fields = ("nome", "endereco", "contato")
+	list_display = ("nome", "gerente", "endereco", "contato")
+	search_fields = ("nome", "endereco", "contato", "gerente__username")
+	list_filter = ("gerente",)
+	filter_horizontal = ("professores",)
 
 
 @admin.register(Treino)

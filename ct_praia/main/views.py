@@ -9,7 +9,7 @@ from django.urls import reverse_lazy
 
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
 from .models import CentroTreinamento, Treino
-from .forms import CentroTreinamentoForm, TreinoForm, UsuarioProfileForm
+from .forms import CentroTreinamentoForm, TreinoForm, UsuarioProfileForm, CTProfessoresForm
 from .mixins import ProfOrManagerRequiredMixin, ProfessorRequiredMixin
 
 from .forms import SignupAlunoForm, SignupProfessorForm, SignupGerenteForm
@@ -286,6 +286,25 @@ def gerente_meus_cts(request):
         return redirect("home")
     cts = CentroTreinamento.objects.filter(gerente=request.user).order_by("nome")
     return render(request, "gerente/meus_cts.html", {"cts": cts})
+
+
+@login_required
+def gerente_ct_professores(request, pk: int):
+    """Permite ao gerente gerenciar o conjunto de professores associados ao CT."""
+    if not hasattr(request.user, "usuario") or request.user.usuario.tipo != Usuario.Tipo.GERENTE:
+        return redirect("home")
+    ct = get_object_or_404(CentroTreinamento, pk=pk, gerente=request.user)
+    if request.method == "POST":
+        form = CTProfessoresForm(request.POST, instance=ct, user=request.user)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Professores atualizados para o CT.")
+            return redirect("meus_cts")
+    else:
+        form = CTProfessoresForm(instance=ct, user=request.user)
+    # Mostrar também professores já associados e potencialmente contagem de treinos
+    professores = ct.professores.all().order_by("username")
+    return render(request, "gerente/ct_professores.html", {"ct": ct, "form": form, "professores": professores})
 
 
 class GerenteCTCreateView(CreateView):
