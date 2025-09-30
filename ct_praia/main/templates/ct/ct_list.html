@@ -12,10 +12,10 @@
     {% for ct in cts %}
     <li>
         <a href="{% url 'ct_detail' ct.pk %}">{{ ct.nome }}</a>
-        {% if user.usuario.tipo == "GERENTE" %}
-        — <a href="{% url 'ct_update' ct.pk %}">Editar</a>
-        — <a href="{% url 'ct_delete' ct.pk %}">Excluir</a>
-        {% endif %}
+    {% if user.usuario.tipo == "GERENTE" and ct.gerente_id == user.id %}
+    — <a href="{% url 'ct_update' ct.pk %}">Editar</a>
+    — <a href="{% url 'ct_delete' ct.pk %}">Excluir</a>
+    {% endif %}
     </li>
     {% endfor %}
 </ul>
