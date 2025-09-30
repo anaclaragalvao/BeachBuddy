@@ -68,6 +68,23 @@ class CentroTreinamentoForm(forms.ModelForm):
 
 
 class TreinoForm(forms.ModelForm):
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop("user", None)
+        super().__init__(*args, **kwargs)
+        # Limita CTs se usuário professor informado
+        if self.user and not self.user.is_superuser:
+            if hasattr(self.user, "usuario") and self.user.usuario.tipo == Usuario.Tipo.PROFESSOR:
+                self.fields["ct"].queryset = CentroTreinamento.objects.filter(professores=self.user).order_by("nome")
+
+    def clean_ct(self):
+        ct = self.cleaned_data.get("ct")
+        if self.user and ct and not self.user.is_superuser:
+            if hasattr(self.user, "usuario") and self.user.usuario.tipo == Usuario.Tipo.PROFESSOR:
+                # Double check de segurança
+                if not ct.professores.filter(pk=self.user.pk).exists():
+                    raise forms.ValidationError("Você não está associado a este CT.")
+        return ct
+
     class Meta:
         model = Treino
         # professor será definido pela view; não expor no form

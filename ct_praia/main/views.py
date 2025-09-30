@@ -351,8 +351,15 @@ class TreinoCreateView(ProfessorRequiredMixin, CreateView):
     template_name = "professor/treino_form.html"
     success_url = reverse_lazy("treino_list")
 
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["user"] = self.request.user
+        return kwargs
+
     def form_valid(self, form):
         form.instance.professor = self.request.user
+        # Revalida associação professor-CT (Treino.clean e form.clean_ct)
+        form.instance.full_clean(exclude=None)
         # validação de conflito de horário para mesmo professor e mesmo CT na mesma data
         data = form.cleaned_data.get("data")
         ct = form.cleaned_data.get("ct")
@@ -378,6 +385,11 @@ class TreinoUpdateView(ProfessorRequiredMixin, UpdateView):
     template_name = "professor/treino_form.html"
     success_url = reverse_lazy("treino_list")
 
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["user"] = self.request.user
+        return kwargs
+
     def get_queryset(self):
         return Treino.objects.filter(professor=self.request.user)
 
@@ -386,6 +398,8 @@ class TreinoUpdateView(ProfessorRequiredMixin, UpdateView):
         ct = form.cleaned_data.get("ct")
         hi = form.cleaned_data.get("hora_inicio")
         hf = form.cleaned_data.get("hora_fim")
+        # Revalida associação professor-CT
+        form.instance.full_clean(exclude=None)
         if data and ct and hi and hf:
             overlap = Treino.objects.filter(
                 professor=self.request.user,
