@@ -131,3 +131,8 @@ STATIC_URL = "static/"
 # https://docs.djangoproject.com/en/4.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Configurações de Email 
+EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+DEFAULT_FROM_EMAIL = "galvaopclara@gmail.com"
+PASSWORD_RESET_TIMEOUT = 60 * 60 * 24  # 24 horas pra fazer
