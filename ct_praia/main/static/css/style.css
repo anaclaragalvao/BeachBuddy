@@ -7,7 +7,6 @@ body {
     margin: 0;
     padding: 0;
     background: #f5f5f5;
-    /* Layout para manter o footer no fundo quando o conteúdo é curto */
     min-height: 100vh;
     display: flex;
     flex-direction: column;
@@ -29,9 +28,117 @@ nav a {
 
 main {
     padding: 20px;
-    flex: 1; /* Ocupa o espaço disponível empurrando o footer para baixo */
+    flex: 1; 
 }
 
 footer {
-    margin-top: auto; /* Garante que fique no final da coluna */
+    margin-top: auto; 
+}
+
+/* ==== Auth pages ==== */
+.auth-page {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    /* ocupa a altura menos header e footer aproximados */
+    min-height: calc(100vh - 140px);
+    padding: 20px;
+}
+
+.auth-card {
+    background: #ffffff;
+    width: 100%;
+    max-width: 420px;
+    padding: 32px 36px;
+    border-radius: 12px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+    border: 1px solid #e2e6ea;
+}
+
+.auth-card h1 {
+    margin-top: 0;
+    margin-bottom: 20px;
+    font-size: 1.6rem;
+    text-align: center;
+    color: #004d66;
+}
+
+.auth-card form p { /* cada campo no as_p vira um <p> */
+    margin: 0 0 14px;
+}
+
+.auth-card label {
+    font-weight: 600;
+    display: block;
+    margin-bottom: 4px;
+    font-size: 0.9rem;
+}
+
+.auth-card input[type="text"],
+.auth-card input[type="email"],
+.auth-card input[type="password"],
+.auth-card input[type="number"],
+.auth-card select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #c8d0d6;
+    border-radius: 6px;
+    font-size: 0.95rem;
+    background: #fdfdfd;
+    transition: border-color .2s, box-shadow .2s;
+}
+
+.auth-card input:focus, .auth-card select:focus {
+    outline: none;
+    border-color: #0094cc;
+    box-shadow: 0 0 0 3px rgba(0,148,204,0.25);
+}
+
+.auth-card button[type="submit"],
+.auth-card .btn-submit {
+    width: 100%;
+    background: #006699;
+    color: #fff;
+    border: none;
+    padding: 12px 16px;
+    font-size: 1rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    transition: background .2s, transform .1s;
+}
+
+.auth-card button[type="submit"]:hover,
+.auth-card .btn-submit:hover {
+    background: #00557d;
+}
+
+.auth-card button[type="submit"]:active,
+.auth-card .btn-submit:active {
+    transform: translateY(1px);
+}
+
+.auth-alt-links {
+    margin-top: 20px;
+    font-size: 0.85rem;
+    text-align: center;
+    color: #333;
+}
+
+.auth-alt-links a {
+    color: #006699;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.auth-alt-links a:hover {
+    text-decoration: underline;
+}
+
+@media (max-width: 520px) {
+    .auth-card {
+        padding: 28px 26px;
+        margin: 0 10px;
+    }
 }

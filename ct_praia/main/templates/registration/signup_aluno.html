@@ -1,11 +1,17 @@
 {% extends "base.html" %}
 {% block title %}Cadastro de Aluno{% endblock %}
 {% block content %}
-<h1>Cadastro de Aluno</h1>
-<form method="post" novalidate>
-    {% csrf_token %}
-    {{ form.as_p }}
-    <button type="submit">Criar conta</button>
-</form>
-<p>Já tem conta? <a href="{% url 'login' %}">Entrar</a></p>
+<div class="auth-page">
+    <div class="auth-card">
+        <h1>Cadastro de Aluno</h1>
+        <form method="post" novalidate>
+                {% csrf_token %}
+                {{ form.as_p }}
+                <button type="submit">Criar conta</button>
+        </form>
+        <div class="auth-alt-links">
+                <p>Já tem conta? <a href="{% url 'login' %}">Entrar</a></p>
+        </div>
+    </div>
+</div>
 {% endblock %}

@@ -2,16 +2,23 @@
 {% load static %}
 {% block title %}Entrar{% endblock %}
 {% block content %}
-<h1>Entrar</h1>
-<form method="post">
-    {% csrf_token %}
-    {{ form.as_p }}
-    <button type="submit">Entrar</button>
-</form>
-<p>Não tem conta? Cadastre-se como
-    <a href="{% url 'signup_aluno' %}">Aluno</a>, 
-    <a href="{% url 'signup_professor' %}">Professor</a> ou
-    <a href="{% url 'signup_gerente' %}">Gerente</a>.
-    <a href="{% url 'password_reset' %}">Esqueceu a senha?</a>
-</p>
+<div class="auth-page">
+  <div class="auth-card">
+    <h1>Entrar</h1>
+    <form method="post" novalidate>
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit">Entrar</button>
+    </form>
+    <div class="auth-alt-links">
+        <p>Não tem conta? Cadastre-se:</p>
+        <p>
+            <a href="{% url 'signup_aluno' %}">Aluno</a> · 
+            <a href="{% url 'signup_professor' %}">Professor</a> · 
+            <a href="{% url 'signup_gerente' %}">Gerente</a>
+        </p>
+        <p><a href="{% url 'password_reset' %}">Esqueceu a senha?</a></p>
+    </div>
+  </div>
+</div>
 {% endblock %}
