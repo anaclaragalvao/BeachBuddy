@@ -1,8 +1,16 @@
+html, body {
+    height: 100%;
+}
+
 body {
     font-family: Arial, sans-serif;
     margin: 0;
     padding: 0;
     background: #f5f5f5;
+    /* Layout para manter o footer no fundo quando o conteúdo é curto */
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
 }
 
 header,
@@ -21,4 +29,9 @@ nav a {
 
 main {
     padding: 20px;
+    flex: 1; /* Ocupa o espaço disponível empurrando o footer para baixo */
+}
+
+footer {
+    margin-top: auto; /* Garante que fique no final da coluna */
 }
