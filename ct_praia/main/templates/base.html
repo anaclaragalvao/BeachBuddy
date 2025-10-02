@@ -21,7 +21,6 @@
             <a href="{% url 'ct_list' %}">CTs</a>
             {% elif user.usuario.tipo == 'PROFESSOR' %}
             <a href="{% url 'prof_dashboard' %}">Dashboard Professor</a>
-            <a href="{% url 'treino_list' %}">Meus Treinos</a>
             <a href="{% url 'ct_list' %}">CTs</a>
             {% elif user.usuario.tipo == "GERENTE" %}
             <a href="{% url 'meus_cts' %}">Meus CTs</a>

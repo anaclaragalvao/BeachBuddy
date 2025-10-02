@@ -22,7 +22,6 @@ urlpatterns = [
     path("ct/<int:pk>/", views.CTDetailView.as_view(), name="ct_detail"),
     path("ct/<int:pk>/editar/", views.CTUpdateView.as_view(), name="ct_update"),
     path("ct/<int:pk>/excluir/", views.CTDeleteView.as_view(), name="ct_delete"),
-    path("professor/treinos/", views.TreinoListView.as_view(), name="treino_list"),
     path("professor/treinos/novo/", views.TreinoCreateView.as_view(), name="treino_create"),
     path("professor/treinos/<int:pk>/", views.TreinoDetailView.as_view(), name="treino_detail"),
     path("professor/treinos/<int:pk>/editar/", views.TreinoUpdateView.as_view(), name="treino_update"),

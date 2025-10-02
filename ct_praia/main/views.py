@@ -392,29 +392,11 @@ class GerenteCTCreateView(CreateView):
 
 
 # --- Treino CRUD (Professor) ---
-class TreinoListView(ProfessorRequiredMixin, ListView):
-    model = Treino
-    template_name = "professor/treino_list.html"
-    context_object_name = "treinos"
-
-    def get_queryset(self):
-        qs = Treino.objects.select_related("ct").filter(professor=self.request.user)
-        data = self.request.GET.get("data")
-        if data:
-            qs = qs.filter(data=data)
-        return qs.order_by("data", "hora_inicio")
-
-    def get_context_data(self, **kwargs):
-        ctx = super().get_context_data(**kwargs)
-        ctx["selected_date"] = self.request.GET.get("data", "")
-        return ctx
-
-
 class TreinoCreateView(ProfessorRequiredMixin, CreateView):
     model = Treino
     form_class = TreinoForm
     template_name = "professor/treino_form.html"
-    success_url = reverse_lazy("treino_list")
+    success_url = reverse_lazy("prof_dashboard")
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
@@ -448,7 +430,7 @@ class TreinoUpdateView(ProfessorRequiredMixin, UpdateView):
     model = Treino
     form_class = TreinoForm
     template_name = "professor/treino_form.html"
-    success_url = reverse_lazy("treino_list")
+    success_url = reverse_lazy("prof_dashboard")
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
@@ -482,7 +464,7 @@ class TreinoUpdateView(ProfessorRequiredMixin, UpdateView):
 class TreinoDeleteView(ProfessorRequiredMixin, DeleteView):
     model = Treino
     template_name = "professor/treino_confirm_delete.html"
-    success_url = reverse_lazy("treino_list")
+    success_url = reverse_lazy("prof_dashboard")
 
     def get_queryset(self):
         return Treino.objects.filter(professor=self.request.user)
