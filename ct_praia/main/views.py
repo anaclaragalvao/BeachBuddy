@@ -135,6 +135,36 @@ def prof_dashboard(request):
             )
         )
     )
+    form = TreinoForm(user=request.user)
+    show_create_modal = False
+
+    if request.method == "POST" and request.POST.get("action") == "create_treino":
+        form = TreinoForm(request.POST, user=request.user)
+        if form.is_valid():
+            treino = form.save(commit=False)
+            treino.professor = request.user
+            data = form.cleaned_data.get("data")
+            ct = form.cleaned_data.get("ct")
+            hi = form.cleaned_data.get("hora_inicio")
+            hf = form.cleaned_data.get("hora_fim")
+            conflict = False
+            if data and ct and hi and hf:
+                conflict = Treino.objects.filter(
+                    professor=request.user,
+                    ct=ct,
+                    data=data,
+                    hora_inicio__lt=hf,
+                    hora_fim__gt=hi,
+                ).exists()
+            if conflict:
+                form.add_error(None, "Conflito de horário com outro treino seu neste CT.")
+                show_create_modal = True
+            else:
+                treino.save()
+                return redirect("prof_dashboard")
+        else:
+            show_create_modal = True
+
     now = timezone.localtime()
     upcoming_filter = Q(data__gt=now.date()) | (Q(data=now.date()) & Q(hora_fim__gte=now.time()))
     base_upcoming_qs = base_qs.filter(upcoming_filter)
@@ -180,6 +210,8 @@ def prof_dashboard(request):
         "total_treinos": total_treinos,
         "next_treino": next_treino,
         "next_treino_alunos": next_treino_alunos,
+        "treino_form": form,
+        "show_create_modal": show_create_modal,
     }
     return render(request, "professor/dashboard.html", context)
 
