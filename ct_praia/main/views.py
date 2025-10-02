@@ -572,7 +572,20 @@ def perfil_detail(request):
         ):
             return redirect("home")
     perfil = getattr(request.user, "usuario", None)
-    return render(request, "perfil/perfil_detail.html", {"perfil": perfil})
+    display_name = request.user.get_full_name() or request.user.get_username()
+    certificacoes_list = []
+    if perfil and perfil.certificacoes:
+        certificacoes_list = [
+            item.strip()
+            for item in perfil.certificacoes.splitlines()
+            if item.strip()
+        ]
+    context = {
+        "perfil": perfil,
+        "display_name": display_name,
+        "certificacoes_list": certificacoes_list,
+    }
+    return render(request, "perfil/perfil_detail.html", context)
 
 
 @login_required
@@ -588,7 +601,6 @@ def perfil_editar(request):
         form = UsuarioProfileForm(request.POST, instance=perfil, usuario_tipo=perfil.tipo)
         if form.is_valid():
             form.save()
-            messages.success(request, "Perfil atualizado com sucesso!")
             return redirect("perfil_detail")
     else:
         form = UsuarioProfileForm(instance=perfil, usuario_tipo=perfil.tipo)

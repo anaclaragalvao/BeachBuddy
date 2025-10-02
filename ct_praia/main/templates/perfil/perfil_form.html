@@ -1,13 +1,41 @@
 {% extends 'base.html' %}
+{% block title %}Editar perfil{% endblock %}
+{% block body_class %}dashboard-page{% endblock %}
 {% block content %}
-<h1>Editar Perfil</h1>
-
-<form method="post">
-  {% csrf_token %}
-  <table>
-    {{ form.as_table }}
-  </table>
-  <button type="submit">Salvar</button>
-  <a href="{% url 'perfil_detail' %}">Cancelar</a>
-</form>
+<section class="profile-form">
+  <div class="profile-form__wrapper">
+    <header class="profile-form__header">
+      <h1>Atualizar informações</h1>
+      <p>Edite seus dados para manter seus alunos informados.</p>
+    </header>
+    <form method="post" class="profile-form__form" novalidate>
+      {% csrf_token %}
+      {% if form.non_field_errors %}
+      <div class="profile-form__errors">
+        {% for error in form.non_field_errors %}
+        <p>{{ error }}</p>
+        {% endfor %}
+      </div>
+      {% endif %}
+      <div class="profile-form__grid">
+        {% for field in form %}
+        <div class="profile-form__field{% if field.errors %} has-error{% endif %}">
+          <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+          {{ field }}
+          {% if field.help_text %}
+          <small>{{ field.help_text }}</small>
+          {% endif %}
+          {% if field.errors %}
+          <span class="error-text">{{ field.errors|join:', ' }}</span>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      <footer class="profile-form__actions">
+        <button type="submit" class="btn">Salvar alterações</button>
+        <a href="{% url 'perfil_detail' %}" class="btn btn-outline">Cancelar</a>
+      </footer>
+    </form>
+  </div>
+</section>
 {% endblock %}

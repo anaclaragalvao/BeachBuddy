@@ -122,6 +122,23 @@ class UsuarioProfileForm(forms.ModelForm):
         if usuario_tipo != Usuario.Tipo.PROFESSOR and "certificacoes" in self.fields:
             self.fields.pop("certificacoes")
 
+        placeholders = {
+            "telefone": "Ex.: (11) 91234-5678",
+            "nivel": "Ex.: Intermediário",
+            "certificacoes": "Liste uma certificação por linha",
+        }
+        help_texts = {
+            "telefone": "Inclua o DDD para facilitar o contato.",
+            "nivel": "Informe o nível ou foco atual dos treinos.",
+            "certificacoes": "Compartilhe certificações relevantes, uma por linha.",
+        }
+        for field_name, field in self.fields.items():
+            attrs = field.widget.attrs
+            attrs.setdefault("placeholder", placeholders.get(field_name, ""))
+            if field_name in help_texts:
+                field.help_text = help_texts[field_name]
+            attrs.setdefault("class", "profile-input")
+
     def save(self, commit=True):
         obj = super().save(commit=False)
         # Se não for professor, garante que certificações fique vazio
