@@ -10,6 +10,10 @@
 
 <body>
     <header>
+        <a class="brand" href="/">
+            <img src="{% static 'images/logo_beachbuddy.png' %}" alt="Beach Buddy Logo">
+            <span>Beach Buddy</span>
+        </a>
         <nav>
             {% if user.is_authenticated %}
             {% if user.usuario.tipo == 'ALUNO' %}
@@ -28,8 +32,6 @@
             <a href="{% url 'logout' %}">Sair</a>
             {% else %}
             <a href="{% url 'login' %}">Entrar</a>
-            <a href="{% url 'signup_aluno' %}">Cadastro Aluno</a>
-            <a href="{% url 'signup_professor' %}">Cadastro Professor</a>
             <a href="{% url 'ct_list' %}">CTs</a>
             {% endif %}
         </nav>
@@ -43,10 +45,7 @@
             {% endfor %}
         </ul>
         {% endif %}
-        {% block content %}
-        <h1>Bem-vindo ao Gerenciador Beach Buddy</h1>
-        <p>Acesse o menu acima para navegar.</p>
-        {% endblock %}
+        {% block content %}{% endblock %}
     </main>
 
     <footer>

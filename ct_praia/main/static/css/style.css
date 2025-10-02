@@ -2,28 +2,111 @@ html, body {
     height: 100%;
 }
 
+/* === Paleta Beach Buddy === */
+:root {
+    --bb-primary: #0ed0f6; /* azul principal */
+    --bb-primary-soft: #21dcff;
+    --bb-primary-pastel: #07a7cb; /* navbar mais suave */
+    --bb-red: #ff275f; /* vermelho auxiliar */
+    --bb-orange: #feb801; /* laranja auxiliar */
+    --bb-dark: #062e34;
+    --bb-bg: #f5f5f5;
+    --bb-text: #1e2b32;
+    --bb-muted: #5b6b75;
+    --bb-radius: 10px;
+    --bb-radius-sm: 5px;
+    --bb-shadow: 0 4px 16px rgba(0,0,0,0.12);
+}
+
 body {
     font-family: Arial, sans-serif;
     margin: 0;
     padding: 0;
-    background: #f5f5f5;
+    background: var(--bb-bg);
     min-height: 100vh;
     display: flex;
     flex-direction: column;
+    color: var(--bb-text);
 }
 
 header,
 footer {
-    background: #006699;
-    color: white;
-    padding: 10px;
-    text-align: center;
+    background: var(--bb-primary-pastel);
+    color: var(--bb-dark);
+    padding: 10px 16px;
+    font-weight: 600;
 }
 
+header { display:flex; align-items:center; justify-content:space-between; gap:20px; }
+header nav { display:flex; flex-wrap:wrap; align-items:center; }
+.brand { display:flex; align-items:center; gap:10px; font-size:1rem; font-weight:700; letter-spacing:.5px; color: var(--bb-dark); text-decoration:none; }
+.brand img { height:38px; width:auto; display:block; }
+
 nav a {
-    color: white;
-    margin: 0 10px;
+    color: #043943;
+    margin: 0 6px;
     text-decoration: none;
+    font-weight: 600;
+    padding: 6px 10px;
+    border-radius: var(--bb-radius-sm);
+    line-height: 1.1;
+    transition: background .18s ease, color .18s ease;
+}
+nav a:hover { background: rgba(0,0,0,0.10); }
+nav a:active { background: rgba(0,0,0,0.16); }
+nav a:focus-visible { outline: 2px solid var(--bb-dark); outline-offset:2px; }
+
+/* === Botões reutilizáveis === */
+.btn {
+    --btn-bg: var(--bb-primary);
+    --btn-color: var(--bb-dark);
+    --btn-bg-hover: var(--bb-primary-soft);
+    display: inline-flex;
+    align-items: center;
+    gap: .4ch;
+    background: var(--btn-bg);
+    color: var(--btn-color);
+    border: 1px solid var(--btn-bg);
+    padding: 10px 18px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    border-radius: var(--bb-radius-sm);
+    text-decoration: none;
+    cursor: pointer;
+    transition: background .18s, transform .12s;
+}
+.btn:hover { background: var(--btn-bg-hover); }
+.btn:active { transform: translateY(1px); }
+.btn-red { --btn-bg: var(--bb-red); --btn-color:#fff; --btn-bg-hover:#ff4676; }
+.btn-orange { --btn-bg: var(--bb-orange); --btn-color:#3a2a00; --btn-bg-hover:#ffc632; }
+.btn-outline { background: transparent; color: var(--bb-primary); border-color: var(--bb-primary); }
+.btn-outline:hover { background: rgba(14,208,246,0.15); }
+.btn-sm { padding: 6px 12px; font-size: 0.7rem; }
+
+/* === Hero (landing) === */
+.hero {
+    padding: clamp(48px,10vh,120px) 20px 72px;
+    text-align: center;
+    background: linear-gradient(135deg,#052028 0%, #06323a 60%, #072f38 100%);
+    position: relative;
+    overflow: hidden;
+    color: #fff;
+}
+.hero::after { content:""; position:absolute; inset:0; background: radial-gradient(circle at 70% 30%, rgba(14,208,246,0.22), transparent 60%); pointer-events:none; }
+.hero h1 { margin:0 0 18px; font-size: clamp(2.2rem,5.4vw,3.5rem); line-height:1.05; font-weight: 700; letter-spacing:-1px; }
+.hero p.lead { max-width:680px; margin:0 auto 28px; font-size: clamp(1rem,1.8vw,1.25rem); line-height:1.4; color: #cfeff4; }
+.hero-actions { display:flex; justify-content:center; flex-wrap:wrap; gap:14px; }
+.hero-metrics { margin:46px auto 0; display:flex; flex-wrap:wrap; justify-content:center; gap:28px; max-width:800px; }
+.hero-metrics .metric { text-align:center; }
+.metric strong { display:block; font-size:1.9rem; font-weight:700; color: var(--bb-primary); }
+.metric span { font-size:.75rem; letter-spacing:.5px; font-weight:600; color:#90a6ab; text-transform:uppercase; }
+.benefits-inline { list-style:none; padding:0; margin:34px auto 0; display:flex; flex-wrap:wrap; gap:10px; justify-content:center; max-width:740px; }
+.benefits-inline li { font-size:.65rem; font-weight:600; letter-spacing:.5px; text-transform:uppercase; background:rgba(255,255,255,0.08); padding:6px 12px; border-radius:40px; border:1px solid rgba(255,255,255,0.15); }
+.hero-note { margin-top:20px; font-size:.7rem; opacity:.65; }
+
+@media (max-width:620px) {
+  .hero-metrics { gap:18px; }
+  .metric strong { font-size:1.6rem; }
 }
 
 main {

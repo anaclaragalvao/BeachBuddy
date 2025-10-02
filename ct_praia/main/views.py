@@ -20,13 +20,28 @@ from django.contrib.auth.decorators import login_required
 AUTO_LOGIN = True  # troque para False se quiser redirecionar pro login
 
 def home(request):
-    # Se autenticado, envia para o dashboard adequado
+    # Redireciona usuários logados para seus fluxos principais
     if request.user.is_authenticated and hasattr(request.user, "usuario"):
         if request.user.usuario.tipo == Usuario.Tipo.ALUNO:
             return redirect("meus_treinos")
         if request.user.usuario.tipo == Usuario.Tipo.PROFESSOR:
             return redirect("prof_dashboard")
-    return render(request, "base.html")
+
+    # Métricas simples para a landing
+    metric_cts = CentroTreinamento.objects.count()
+    metric_professores = Usuario.objects.filter(tipo=Usuario.Tipo.PROFESSOR).count()
+    # Treinos futuros
+    now = timezone.localdate()
+    metric_treinos = Treino.objects.filter(data__gte=now).count()
+    metric_alunos = Usuario.objects.filter(tipo=Usuario.Tipo.ALUNO).count()
+
+    context = {
+        "metric_cts": metric_cts,
+        "metric_professores": metric_professores,
+        "metric_treinos": metric_treinos,
+        "metric_alunos": metric_alunos,
+    }
+    return render(request, "home.html", context)
 
 
 def is_aluno(user):
