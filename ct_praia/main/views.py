@@ -306,6 +306,45 @@ class CTListView(ListView):
     template_name = "ct/ct_list.html"
     context_object_name = "cts"
 
+    def get_queryset(self):
+        qs = (
+            super()
+            .get_queryset()
+            .select_related("gerente")
+            .prefetch_related("professores")
+        )
+        today = timezone.localdate()
+        qs = qs.annotate(
+            upcoming_treinos=Count(
+                "treinos",
+                filter=Q(treinos__data__gte=today),
+                distinct=True,
+            ),
+            professores_total=Count("professores", distinct=True),
+        )
+
+        user = self.request.user
+        if user.is_authenticated and hasattr(user, "usuario"):
+            if user.usuario.tipo == Usuario.Tipo.PROFESSOR:
+                qs = qs.filter(professores=user)
+
+        return qs.distinct()
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        user = self.request.user
+        ctx["is_professor"] = (
+            user.is_authenticated
+            and hasattr(user, "usuario")
+            and user.usuario.tipo == Usuario.Tipo.PROFESSOR
+        )
+        ctx["is_gerente"] = (
+            user.is_authenticated
+            and hasattr(user, "usuario")
+            and user.usuario.tipo == Usuario.Tipo.GERENTE
+        )
+        return ctx
+
 class CTDetailView(DetailView):
     model = CentroTreinamento
     template_name = "ct/ct_detail.html"
@@ -315,16 +354,28 @@ class CTDetailView(DetailView):
         ctx = super().get_context_data(**kwargs)
         today = timezone.localdate()
         mostrar_todos = self.request.GET.get("all") == "1"
-        qs = (
+        base_qs = (
             self.object.treinos
             .select_related("ct", "professor")
             .annotate(confirmadas=Count("inscricoes", filter=Q(inscricoes__status=Inscricao.Status.CONFIRMADA)))
         )
-        if not mostrar_todos:
-            qs = qs.filter(data__gte=today)
+
+        futuros_qs = base_qs.filter(data__gte=today)
+        proximos_count = futuros_qs.count()
+        proximos_proximo = futuros_qs.order_by("data", "hora_inicio").first()
+        passados_count = base_qs.filter(data__lt=today).count()
+
+        qs = futuros_qs if not mostrar_todos else base_qs
         treinos = qs.order_by("data", "hora_inicio")
+
         ctx["treinos"] = list(treinos)
         ctx["mostrar_todos"] = mostrar_todos
+        ctx["proximos_count"] = proximos_count
+        ctx["passados_count"] = passados_count
+        ctx["next_treino"] = proximos_proximo
+        ctx["professores"] = list(
+            self.object.professores.order_by("first_name", "last_name", "username")
+        )
         if self.request.user.is_authenticated:
             inscritos_ids = Inscricao.objects.filter(
                 aluno=self.request.user,

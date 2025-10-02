@@ -1,43 +1,151 @@
 {% extends "base.html" %}
 {% block title %}{{ ct.nome }}{% endblock %}
+{% block body_class %}dashboard-page{% endblock %}
 {% block content %}
-<h1>{{ ct.nome }}</h1>
-<p><strong>Endereço:</strong> {{ ct.endereco }}</p>
-<p><strong>Contato:</strong> {{ ct.contato }}</p>
-<p><strong>CNPJ:</strong> {{ ct.cnpj }}</p>
-<p><strong>Modalidades:</strong><br>{{ ct.modalidades|linebreaks }}</p>
-
-<h2>{% if mostrar_todos %}Todos os treinos{% else %}Próximos treinos{% endif %}</h2>
-<p style="font-size:0.9rem;">
-	{% if mostrar_todos %}
-		<a href="?">Ver apenas próximos</a>
-	{% else %}
-		<a href="?all=1">Ver todos (incluindo passados)</a>
-	{% endif %}
-</p>
-{% if treinos %}
-<ul>
-	{% for t in treinos %}
-		<li>
-			{{ t.modalidade }} — {{ t.data }} {{ t.hora_inicio }}-{{ t.hora_fim }} — Vagas: {{ t.vagas }} ({{ t.confirmadas }} confirmadas)
-			{% if user.is_authenticated and user.usuario.tipo == 'ALUNO' %}
-				{% if t.id in inscritos_ids %}
-					— <em>Inscrito</em>
-				{% elif t.confirmadas >= t.vagas %}
-					— <strong>Lotado</strong>
-				{% else %}
-					<form method="post" action="{% url 'inscricao_criar' t.pk %}" style="display:inline">
-						{% csrf_token %}
-						<button type="submit">Inscrever-se</button>
-					</form>
-				{% endif %}
+<section class="ct-detail">
+	<div class="ct-detail__nav">
+		<a href="{% url 'ct_list' %}" class="link-back">&larr; Voltar para lista</a>
+		<div class="ct-detail__toggle">
+			{% if mostrar_todos %}
+			<a href="?" class="btn btn-outline btn-sm">Ver apenas próximos</a>
+			{% else %}
+			<a href="?all=1" class="btn btn-outline btn-sm">Ver todos os treinos</a>
 			{% endif %}
-		</li>
-	{% endfor %}
-</ul>
-{% else %}
-<p>{% if mostrar_todos %}Nenhum treino cadastrado para este CT.{% else %}Nenhum treino futuro cadastrado para este CT.{% endif %}</p>
-{% endif %}
+		</div>
+	</div>
 
-<p><a href="{% url 'ct_list' %}">&larr; Voltar</a></p>
+	<div class="ct-detail__grid">
+		<article class="ct-summary-card">
+			<header class="ct-summary-card__header">
+				<h1>{{ ct.nome }}</h1>
+				{% if ct.cnpj %}
+				<span class="ct-summary-card__badge">CNPJ {{ ct.cnpj }}</span>
+				{% endif %}
+			</header>
+			<p class="ct-summary-card__intro">{{ ct.modalidades|linebreaksbr }}</p>
+			<dl class="ct-summary-card__details">
+				<div>
+					<dt>Endereço</dt>
+					<dd>{{ ct.endereco }}</dd>
+				</div>
+				<div>
+					<dt>Contato</dt>
+					<dd>{{ ct.contato }}</dd>
+				</div>
+				{% if ct.gerente %}
+				<div>
+					<dt>Gerente responsável</dt>
+					<dd>{{ ct.gerente.get_full_name|default:ct.gerente.username }}</dd>
+				</div>
+				{% endif %}
+			</dl>
+			<div class="ct-summary-card__professores">
+				<h3>Professores associados</h3>
+				{% if professores %}
+				<ul>
+					{% for professor in professores %}
+					<li>{{ professor.get_full_name|default:professor.username }}</li>
+					{% endfor %}
+				</ul>
+				{% else %}
+				<p>Sem professores vinculados ainda.</p>
+				{% endif %}
+			</div>
+		</article>
+
+		<aside class="ct-insight-card">
+			<h2>Resumo rápido</h2>
+			<ul>
+				<li>
+					<span class="label">Treinos futuros</span>
+					<strong>{{ proximos_count }}</strong>
+				</li>
+				<li>
+					<span class="label">Treinos passados</span>
+					<strong>{{ passados_count }}</strong>
+				</li>
+				{% if next_treino %}
+				<li>
+					<span class="label">Próximo treino</span>
+					<strong>{{ next_treino.data|date:"d/m" }} · {{ next_treino.hora_inicio|time:"H:i" }}</strong>
+					<small>{{ next_treino.modalidade }} com {{ next_treino.professor.get_full_name|default:next_treino.professor.username }}</small>
+				</li>
+				{% else %}
+				<li>
+					<span class="label">Próximo treino</span>
+					<strong>—</strong>
+					<small>Cadastre um novo horário para este CT.</small>
+				</li>
+				{% endif %}
+			</ul>
+		</aside>
+	</div>
+
+	<section class="ct-treinos">
+		<header class="ct-treinos__header">
+			<div>
+				<h2>{% if mostrar_todos %}Todos os treinos do CT{% else %}Próximos treinos{% endif %}</h2>
+				<p>{% if mostrar_todos %}Inclui horários já realizados e futuros.{% else %}Mostrando apenas sessões futuras disponíveis.{% endif %}</p>
+			</div>
+		</header>
+
+		{% if treinos %}
+		<div class="ct-treinos__grid">
+			{% for t in treinos %}
+			<article class="ct-treino-card">
+				<header>
+					<span class="ct-treino-card__date">{{ t.data|date:"d/m/Y" }} · {{ t.hora_inicio|time:"H:i" }} - {{ t.hora_fim|time:"H:i" }}</span>
+					<h3>{{ t.modalidade }}</h3>
+				</header>
+				<dl>
+					<div>
+						<dt>Professor</dt>
+						<dd>{{ t.professor.get_full_name|default:t.professor.username }}</dd>
+					</div>
+					<div>
+						<dt>Nível</dt>
+						<dd>{{ t.nivel }}</dd>
+					</div>
+					<div>
+						<dt>Vagas</dt>
+						<dd>{{ t.confirmadas }}/{{ t.vagas }} preenchidas</dd>
+					</div>
+					{% if t.observacoes %}
+					<div>
+						<dt>Observações</dt>
+						<dd>{{ t.observacoes }}</dd>
+					</div>
+					{% endif %}
+				</dl>
+				<footer>
+					{% if user.is_authenticated and user.usuario.tipo == 'ALUNO' %}
+						{% if t.id in inscritos_ids %}
+						<span class="status-badge status-badge--success">Inscrito</span>
+						{% elif t.confirmadas >= t.vagas %}
+						<span class="status-badge status-badge--warning">Lotado</span>
+						{% else %}
+						<form method="post" action="{% url 'inscricao_criar' t.pk %}">
+							{% csrf_token %}
+							<button type="submit" class="btn btn-sm">Inscrever-se</button>
+						</form>
+						{% endif %}
+					{% endif %}
+					<a href="{% url 'treino_detail' t.pk %}" class="btn btn-outline btn-sm">Detalhes do treino</a>
+				</footer>
+			</article>
+			{% endfor %}
+		</div>
+		{% else %}
+		<div class="empty-state">
+			{% if mostrar_todos %}
+			<h3>Nenhum treino cadastrado para este CT.</h3>
+			<p>Que tal planejar a próxima sequência de aulas?</p>
+			{% else %}
+			<h3>Nenhum treino futuro disponível.</h3>
+			<p>Assim que novos horários forem cadastrados eles aparecerão aqui.</p>
+			{% endif %}
+		</div>
+		{% endif %}
+	</section>
+</section>
 {% endblock %}

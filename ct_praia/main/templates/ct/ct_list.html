@@ -1,25 +1,100 @@
 {% extends "base.html" %}
 {% block title %}Centros de Treinamento{% endblock %}
+{% block body_class %}dashboard-page{% endblock %}
 {% block content %}
-<h1>Centros de Treinamento no Beach Buddy</h1>
+<section class="ct-page">
+    <header class="ct-page__header">
+        <div>
+            <h1 class="ct-page__title">
+                {% if is_professor %}
+                Meus centros de treinamento
+                {% else %}
+                Centros de treinamento
+                {% endif %}
+            </h1>
+            <p class="ct-page__subtitle">
+                {% if is_professor %}
+                Visualize rapidamente os dados dos CTs em que você ministra treinos.
+                {% else %}
+                Conheça os espaços parceiros do Beach Buddy e confira as modalidades oferecidas.
+                {% endif %}
+            </p>
+        </div>
+        {% if is_gerente %}
+        <a href="{% url 'ct_create' %}" class="btn">Novo CT</a>
+        {% endif %}
+    </header>
 
-{% if user.usuario.tipo == "GERENTE" %}
-<p><a href="{% url 'ct_create' %}">+ Novo Centro</a></p>
-{% endif %}
+    {% if cts %}
+    <div class="ct-grid" aria-live="polite">
+        {% for ct in cts %}
+        <article class="ct-card">
+            <header class="ct-card__header">
+                <div>
+                    <h2>{{ ct.nome }}</h2>
+                    {% if ct.gerente %}
+                    <span class="ct-card__meta">Gerente: {{ ct.gerente.get_full_name|default:ct.gerente.username }}</span>
+                    {% endif %}
+                </div>
+                {% if is_gerente and ct.gerente_id == user.id %}
+                <div class="ct-card__actions">
+                    <a href="{% url 'ct_update' ct.pk %}" class="btn btn-sm">Editar</a>
+                    <a href="{% url 'ct_delete' ct.pk %}" class="btn btn-outline btn-sm">Excluir</a>
+                </div>
+                {% endif %}
+            </header>
 
-{% if cts %}
-<ul>
-    {% for ct in cts %}
-    <li>
-        <a href="{% url 'ct_detail' ct.pk %}">{{ ct.nome }}</a>
-    {% if user.usuario.tipo == "GERENTE" and ct.gerente_id == user.id %}
-    — <a href="{% url 'ct_update' ct.pk %}">Editar</a>
-    — <a href="{% url 'ct_delete' ct.pk %}">Excluir</a>
+            <dl class="ct-card__details">
+                <div>
+                    <dt>Endereço</dt>
+                    <dd>{{ ct.endereco }}</dd>
+                </div>
+                <div>
+                    <dt>Contato</dt>
+                    <dd>{{ ct.contato }}</dd>
+                </div>
+                <div>
+                    <dt>Modalidades</dt>
+                    <dd>{{ ct.modalidades|linebreaksbr }}</dd>
+                </div>
+                <div>
+                    <dt>Professores associados</dt>
+                    <dd>
+                        {% if ct.professores_total %}
+                        {{ ct.professores_total }}
+                        {% else %}
+                        Nenhum cadastrado
+                        {% endif %}
+                    </dd>
+                </div>
+                <div>
+                    <dt>Treinos futuros</dt>
+                    <dd>
+                        {% if ct.upcoming_treinos %}
+                        {{ ct.upcoming_treinos }} agendado{% if ct.upcoming_treinos|pluralize %}s{% endif %}
+                        {% else %}
+                        Nenhum agendado
+                        {% endif %}
+                    </dd>
+                </div>
+            </dl>
+
+            <footer class="ct-card__footer">
+                <a href="{% url 'ct_detail' ct.pk %}" class="btn btn-outline btn-sm">Ver agenda completa</a>
+            </footer>
+        </article>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        {% if is_professor %}
+        <h2>Você ainda não foi vinculado a nenhum CT.</h2>
+        <p>Peça ao gerente responsável para adicioná-lo à equipe do centro.</p>
+        {% else %}
+        <h2>Nenhum centro cadastrado no momento.</h2>
+        <p>Volte em breve para conhecer novos parceiros.</p>
+        {% endif %}
+    </div>
     {% endif %}
-    </li>
-    {% endfor %}
-</ul>
-{% else %}
-<p>Nenhum centro cadastrado.</p>
-{% endif %}
+</section>
 {% endblock %}
