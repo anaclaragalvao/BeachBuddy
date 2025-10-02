@@ -1,28 +1,4 @@
-{% extends "base.html" %}
-{% block title %}Meus Treinos{% endblock %}
-{% block content %}
-<h1>Meus Treinos</h1>
-<form method="get" style="margin-bottom: 1rem;">
-    <label>Filtrar por data:</label>
-    <input type="date" name="data" value="{{ selected_date }}">
-    <button type="submit">Filtrar</button>
-    <a href="{% url 'prof_dashboard' %}">Limpar</a>
-</form>
-<p>
-    <a href="{% url 'treino_create' %}">Novo treino</a>
-</p>
-{% if treinos %}
-<ul>
-    {% for t in treinos %}
-    <li>
-        <a href="{% url 'treino_detail' t.pk %}"><strong>{{ t.modalidade }}</strong></a>
-        — {{ t.ct.nome }} — {{ t.data }} {{ t.hora_inicio }}-{{ t.hora_fim }} — Vagas: {{ t.vagas }} — Nível: {{ t.nivel }}
-        [<a href="{% url 'treino_update' t.pk %}">editar</a>]
-        [<a href="{% url 'treino_delete' t.pk %}">excluir</a>]
-    </li>
-    {% endfor %}
-</ul>
-{% else %}
-<p>Você ainda não possui treinos cadastrados.</p>
-{% endif %}
-{% endblock %}
+{% comment %}
+Tela legada substituída pelo dashboard do professor. Mantida vazia propositalmente para evitar
+erros de template em ambientes onde a view ainda esteja referenciada.
+{% endcomment %}

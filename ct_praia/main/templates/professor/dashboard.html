@@ -92,8 +92,20 @@
       <p class="treino-card__notes">{{ t.observacoes }}</p>
       {% endif %}
       <footer class="treino-card__footer">
-        <a href="{% url 'treino_update' t.pk %}" class="btn btn-sm">Editar</a>
-        <a href="{% url 'treino_detail' t.pk %}" class="btn btn-outline btn-sm">Detalhes</a>
+  <button type="button"
+    class="btn btn-sm"
+    data-open-edit
+    data-treino-id="{{ t.pk }}"
+    data-ct-id="{{ t.ct_id }}"
+    data-modalidade="{{ t.modalidade|escape }}"
+    data-data="{{ t.data|date:'Y-m-d' }}"
+    data-hora-inicio="{{ t.hora_inicio|time:'H:i' }}"
+    data-hora-fim="{{ t.hora_fim|time:'H:i' }}"
+    data-vagas="{{ t.vagas }}"
+    data-nivel="{{ t.nivel|escape }}"
+    data-observacoes="{{ t.observacoes|default:''|escape }}">
+    Editar
+  </button>
       </footer>
     </article>
     {% endfor %}
@@ -117,15 +129,24 @@
   </section>
 </section>
 
-<div class="modal-backdrop{% if show_create_modal %} is-open{% endif %}" id="create-treino-modal" aria-hidden="{% if show_create_modal %}false{% else %}true{% endif %}" role="dialog" aria-labelledby="create-treino-title">
+{% with current_mode=modal_mode|default:"create" %}
+<div class="modal-backdrop{% if show_treino_modal %} is-open{% endif %}"
+     id="treino-modal"
+     data-initial-mode="{{ current_mode }}"
+     data-editing-id="{{ editing_treino_id|default:'' }}"
+     data-has-errors="{% if treino_form.errors %}1{% else %}0{% endif %}"
+     aria-hidden="{% if show_treino_modal %}false{% else %}true{% endif %}"
+     role="dialog"
+     aria-labelledby="treino-modal-title">
   <div class="modal-card">
     <header class="modal-card__header">
-      <h2 id="create-treino-title">Novo treino</h2>
+      <h2 id="treino-modal-title">{% if current_mode == 'edit' %}Editar treino{% else %}Novo treino{% endif %}</h2>
       <button type="button" class="modal-close" data-close-modal aria-label="Fechar formulário">&times;</button>
     </header>
     <form method="post" class="modal-form" novalidate>
       {% csrf_token %}
-      <input type="hidden" name="action" value="create_treino">
+      <input type="hidden" name="action" value="{% if current_mode == 'edit' %}update_treino{% else %}create_treino{% endif %}">
+      <input type="hidden" name="treino_id" value="{{ editing_treino_id|default:'' }}">
       {% if treino_form.non_field_errors %}
       <div class="form-errors">
         {% for error in treino_form.non_field_errors %}
@@ -148,20 +169,77 @@
         {% endfor %}
       </div>
       <div class="modal-actions">
-        <button type="submit" class="btn">Cadastrar</button>
+        <button type="submit" class="btn" data-submit-label>{% if current_mode == 'edit' %}Salvar alterações{% else %}Cadastrar{% endif %}</button>
         <button type="button" class="btn btn-outline" data-close-modal>Cancelar</button>
       </div>
     </form>
   </div>
 </div>
+{% endwith %}
 
 <script>
   (function() {
-    const modal = document.getElementById('create-treino-modal');
+    const modal = document.getElementById('treino-modal');
     if (!modal) { return; }
     const openBtn = document.getElementById('open-create-treino');
     const closeButtons = modal.querySelectorAll('[data-close-modal]');
     const firstField = modal.querySelector('input, select, textarea');
+    const form = modal.querySelector('form');
+    const hiddenAction = form.querySelector('input[name="action"]');
+    const hiddenTreinoId = form.querySelector('input[name="treino_id"]');
+    const title = modal.querySelector('#treino-modal-title');
+    const submitBtn = form.querySelector('[data-submit-label]');
+
+    const fieldRefs = {
+      ct: form.querySelector('[name="ct"]'),
+      modalidade: form.querySelector('[name="modalidade"]'),
+      data: form.querySelector('[name="data"]'),
+      hora_inicio: form.querySelector('[name="hora_inicio"]'),
+      hora_fim: form.querySelector('[name="hora_fim"]'),
+      vagas: form.querySelector('[name="vagas"]'),
+      nivel: form.querySelector('[name="nivel"]'),
+      observacoes: form.querySelector('[name="observacoes"]'),
+    };
+
+    function setMode(mode, data = null) {
+      if (mode === 'edit') {
+        hiddenAction.value = 'update_treino';
+        submitBtn.textContent = 'Salvar alterações';
+        title.textContent = 'Editar treino';
+      } else {
+        hiddenAction.value = 'create_treino';
+        submitBtn.textContent = 'Cadastrar';
+        title.textContent = 'Novo treino';
+      }
+
+      if (mode === 'edit' && data) {
+        hiddenTreinoId.value = data.id || '';
+        if (fieldRefs.ct) fieldRefs.ct.value = data.ct || '';
+        if (fieldRefs.modalidade) fieldRefs.modalidade.value = data.modalidade || '';
+        if (fieldRefs.data) fieldRefs.data.value = data.data || '';
+        if (fieldRefs.hora_inicio) fieldRefs.hora_inicio.value = data.hora_inicio || '';
+        if (fieldRefs.hora_fim) fieldRefs.hora_fim.value = data.hora_fim || '';
+        if (fieldRefs.vagas) fieldRefs.vagas.value = data.vagas || '';
+        if (fieldRefs.nivel) fieldRefs.nivel.value = data.nivel || '';
+        if (fieldRefs.observacoes) fieldRefs.observacoes.value = data.observacoes || '';
+      }
+
+      if (mode === 'create') {
+        hiddenTreinoId.value = '';
+        if (data === null) {
+          // limpa apenas se nenhum dado fornecido (evita sobrescrever erros do servidor)
+          Object.values(fieldRefs).forEach(field => {
+            if (!field) { return; }
+            if (field.tagName === 'SELECT') {
+              field.selectedIndex = 0;
+            } else {
+              field.value = '';
+            }
+          });
+        }
+      }
+      modal.dataset.currentMode = mode;
+    }
 
     function openModal() {
       modal.classList.add('is-open');
@@ -177,7 +255,10 @@
     }
 
     if (openBtn) {
-      openBtn.addEventListener('click', openModal);
+      openBtn.addEventListener('click', () => {
+        setMode('create');
+        openModal();
+      });
     }
 
     closeButtons.forEach(btn => btn.addEventListener('click', closeModal));
@@ -194,7 +275,49 @@
       }
     });
 
+    const editButtons = document.querySelectorAll('[data-open-edit]');
+    editButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const data = {
+          id: btn.dataset.treinoId,
+          ct: btn.dataset.ctId,
+          modalidade: btn.dataset.modalidade,
+          data: btn.dataset.data,
+          hora_inicio: btn.dataset.horaInicio,
+          hora_fim: btn.dataset.horaFim,
+          vagas: btn.dataset.vagas,
+          nivel: btn.dataset.nivel,
+          observacoes: btn.dataset.observacoes,
+        };
+        setMode('edit', data);
+        openModal();
+      });
+    });
+
     if (modal.classList.contains('is-open')) {
+      const initialMode = modal.dataset.initialMode || 'create';
+      const hasErrors = modal.dataset.hasErrors === '1';
+      const editingId = modal.dataset.editingId;
+      if (initialMode === 'edit') {
+        const editBtn = document.querySelector(`[data-open-edit][data-treino-id="${editingId}"]`);
+        let data = null;
+        if (editBtn) {
+          data = {
+            id: editBtn.dataset.treinoId,
+            ct: editBtn.dataset.ctId,
+            modalidade: editBtn.dataset.modalidade,
+            data: editBtn.dataset.data,
+            hora_inicio: editBtn.dataset.horaInicio,
+            hora_fim: editBtn.dataset.horaFim,
+            vagas: editBtn.dataset.vagas,
+            nivel: editBtn.dataset.nivel,
+            observacoes: editBtn.dataset.observacoes,
+          };
+        }
+        setMode('edit', hasErrors ? null : data);
+      } else {
+        setMode('create', hasErrors ? null : {});
+      }
       openModal();
     }
   })();

@@ -117,21 +117,20 @@
 					</div>
 					{% endif %}
 				</dl>
-				<footer>
-					{% if user.is_authenticated and user.usuario.tipo == 'ALUNO' %}
-						{% if t.id in inscritos_ids %}
-						<span class="status-badge status-badge--success">Inscrito</span>
-						{% elif t.confirmadas >= t.vagas %}
-						<span class="status-badge status-badge--warning">Lotado</span>
-						{% else %}
-						<form method="post" action="{% url 'inscricao_criar' t.pk %}">
-							{% csrf_token %}
-							<button type="submit" class="btn btn-sm">Inscrever-se</button>
-						</form>
-						{% endif %}
-					{% endif %}
-					<a href="{% url 'treino_detail' t.pk %}" class="btn btn-outline btn-sm">Detalhes do treino</a>
-				</footer>
+						<footer>
+							{% if user.is_authenticated and user.usuario.tipo == 'ALUNO' %}
+								{% if t.id in inscritos_ids %}
+								<span class="status-badge status-badge--success">Inscrito</span>
+								{% elif t.confirmadas >= t.vagas %}
+								<span class="status-badge status-badge--warning">Lotado</span>
+								{% else %}
+								<form method="post" action="{% url 'inscricao_criar' t.pk %}">
+									{% csrf_token %}
+									<button type="submit" class="btn btn-sm">Inscrever-se</button>
+								</form>
+								{% endif %}
+							{% endif %}
+						</footer>
 			</article>
 			{% endfor %}
 		</div>

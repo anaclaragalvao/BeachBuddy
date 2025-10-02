@@ -6,7 +6,7 @@
     object.hora_inicio }}?</p>
 <form method="post">
     {% csrf_token %}
-    <button type="submit">Confirmar</button>
-    <a href="{% url 'treino_detail' object.pk %}">Cancelar</a>
+    <button type="submit" class="btn btn-red">Confirmar</button>
+    <a href="{% url 'prof_dashboard' %}" class="btn btn-outline">Cancelar</a>
 </form>
 {% endblock %}

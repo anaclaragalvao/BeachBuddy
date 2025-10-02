@@ -136,34 +136,70 @@ def prof_dashboard(request):
         )
     )
     form = TreinoForm(user=request.user)
-    show_create_modal = False
+    show_treino_modal = False
+    modal_mode = "create"
+    editing_treino_id = None
 
-    if request.method == "POST" and request.POST.get("action") == "create_treino":
-        form = TreinoForm(request.POST, user=request.user)
-        if form.is_valid():
-            treino = form.save(commit=False)
-            treino.professor = request.user
-            data = form.cleaned_data.get("data")
-            ct = form.cleaned_data.get("ct")
-            hi = form.cleaned_data.get("hora_inicio")
-            hf = form.cleaned_data.get("hora_fim")
-            conflict = False
-            if data and ct and hi and hf:
-                conflict = Treino.objects.filter(
-                    professor=request.user,
-                    ct=ct,
-                    data=data,
-                    hora_inicio__lt=hf,
-                    hora_fim__gt=hi,
-                ).exists()
-            if conflict:
-                form.add_error(None, "Conflito de horário com outro treino seu neste CT.")
-                show_create_modal = True
+    if request.method == "POST":
+        action = request.POST.get("action")
+        if action == "create_treino":
+            form = TreinoForm(request.POST, user=request.user)
+            if form.is_valid():
+                treino = form.save(commit=False)
+                treino.professor = request.user
+                data = form.cleaned_data.get("data")
+                ct = form.cleaned_data.get("ct")
+                hi = form.cleaned_data.get("hora_inicio")
+                hf = form.cleaned_data.get("hora_fim")
+                conflict = False
+                if data and ct and hi and hf:
+                    conflict = Treino.objects.filter(
+                        professor=request.user,
+                        ct=ct,
+                        data=data,
+                        hora_inicio__lt=hf,
+                        hora_fim__gt=hi,
+                    ).exists()
+                if conflict:
+                    form.add_error(None, "Conflito de horário com outro treino seu neste CT.")
+                    show_treino_modal = True
+                    modal_mode = "create"
+                else:
+                    treino.save()
+                    return redirect("prof_dashboard")
             else:
-                treino.save()
-                return redirect("prof_dashboard")
-        else:
-            show_create_modal = True
+                show_treino_modal = True
+                modal_mode = "create"
+        elif action == "update_treino":
+            treino_id = request.POST.get("treino_id")
+            treino_obj = get_object_or_404(Treino, pk=treino_id, professor=request.user)
+            form = TreinoForm(request.POST, user=request.user, instance=treino_obj)
+            if form.is_valid():
+                data = form.cleaned_data.get("data")
+                ct = form.cleaned_data.get("ct")
+                hi = form.cleaned_data.get("hora_inicio")
+                hf = form.cleaned_data.get("hora_fim")
+                conflict = False
+                if data and ct and hi and hf:
+                    conflict = Treino.objects.filter(
+                        professor=request.user,
+                        ct=ct,
+                        data=data,
+                        hora_inicio__lt=hf,
+                        hora_fim__gt=hi,
+                    ).exclude(pk=treino_obj.pk).exists()
+                if conflict:
+                    form.add_error(None, "Conflito de horário com outro treino seu neste CT.")
+                    show_treino_modal = True
+                    modal_mode = "edit"
+                    editing_treino_id = treino_obj.pk
+                else:
+                    form.save()
+                    return redirect("prof_dashboard")
+            else:
+                show_treino_modal = True
+                modal_mode = "edit"
+                editing_treino_id = treino_obj.pk
 
     now = timezone.localtime()
     upcoming_filter = Q(data__gt=now.date()) | (Q(data=now.date()) & Q(hora_fim__gte=now.time()))
@@ -211,7 +247,9 @@ def prof_dashboard(request):
         "next_treino": next_treino,
         "next_treino_alunos": next_treino_alunos,
         "treino_form": form,
-        "show_create_modal": show_create_modal,
+        "show_treino_modal": show_treino_modal,
+        "modal_mode": modal_mode,
+        "editing_treino_id": editing_treino_id,
     }
     return render(request, "professor/dashboard.html", context)
 
@@ -509,41 +547,6 @@ class TreinoCreateView(ProfessorRequiredMixin, CreateView):
         return super().form_valid(form)
 
 
-class TreinoUpdateView(ProfessorRequiredMixin, UpdateView):
-    model = Treino
-    form_class = TreinoForm
-    template_name = "professor/treino_form.html"
-    success_url = reverse_lazy("prof_dashboard")
-
-    def get_form_kwargs(self):
-        kwargs = super().get_form_kwargs()
-        kwargs["user"] = self.request.user
-        return kwargs
-
-    def get_queryset(self):
-        return Treino.objects.filter(professor=self.request.user)
-
-    def form_valid(self, form):
-        data = form.cleaned_data.get("data")
-        ct = form.cleaned_data.get("ct")
-        hi = form.cleaned_data.get("hora_inicio")
-        hf = form.cleaned_data.get("hora_fim")
-        # Revalida associação professor-CT
-        form.instance.full_clean(exclude=None)
-        if data and ct and hi and hf:
-            overlap = Treino.objects.filter(
-                professor=self.request.user,
-                ct=ct,
-                data=data,
-                hora_inicio__lt=hf,
-                hora_fim__gt=hi,
-            ).exclude(pk=self.object.pk).exists()
-            if overlap:
-                form.add_error(None, "Conflito de horário com outro treino seu neste CT.")
-                return self.form_invalid(form)
-        return super().form_valid(form)
-
-
 class TreinoDeleteView(ProfessorRequiredMixin, DeleteView):
     model = Treino
     template_name = "professor/treino_confirm_delete.html"
@@ -551,15 +554,6 @@ class TreinoDeleteView(ProfessorRequiredMixin, DeleteView):
 
     def get_queryset(self):
         return Treino.objects.filter(professor=self.request.user)
-
-
-class TreinoDetailView(ProfessorRequiredMixin, DetailView):
-    model = Treino
-    template_name = "professor/treino_detail.html"
-
-    def get_queryset(self):
-        return Treino.objects.select_related("ct").filter(professor=self.request.user)
-
 
 # --- Perfil (Aluno/Professor) ---
 @login_required
