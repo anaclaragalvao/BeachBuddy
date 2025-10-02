@@ -9,7 +9,7 @@
       <p class="dashboard-subtitle">Acompanhe seus próximos treinos e organize sua agenda com facilidade.</p>
     </div>
     <div class="dashboard-actions">
-      <button type="button" class="btn" id="open-create-treino">Novo treino</button>
+  <button type="button" class="btn" id="open-create-treino" data-open-create>Novo treino</button>
     </div>
   </header>
 
@@ -92,20 +92,33 @@
       <p class="treino-card__notes">{{ t.observacoes }}</p>
       {% endif %}
       <footer class="treino-card__footer">
-  <button type="button"
-    class="btn btn-sm"
-    data-open-edit
-    data-treino-id="{{ t.pk }}"
-    data-ct-id="{{ t.ct_id }}"
-    data-modalidade="{{ t.modalidade|escape }}"
-    data-data="{{ t.data|date:'Y-m-d' }}"
-    data-hora-inicio="{{ t.hora_inicio|time:'H:i' }}"
-    data-hora-fim="{{ t.hora_fim|time:'H:i' }}"
-    data-vagas="{{ t.vagas }}"
-    data-nivel="{{ t.nivel|escape }}"
-    data-observacoes="{{ t.observacoes|default:''|escape }}">
-    Editar
-  </button>
+        <div class="treino-card__actions">
+          <button type="button"
+                  class="btn btn-sm"
+                  data-open-edit
+                  data-treino-id="{{ t.pk }}"
+                  data-ct-id="{{ t.ct_id }}"
+                  data-modalidade="{{ t.modalidade|escape }}"
+                  data-data="{{ t.data|date:'Y-m-d' }}"
+                  data-hora-inicio="{{ t.hora_inicio|time:'H:i' }}"
+                  data-hora-fim="{{ t.hora_fim|time:'H:i' }}"
+                  data-vagas="{{ t.vagas }}"
+                  data-nivel="{{ t.nivel|escape }}"
+                  data-observacoes="{{ t.observacoes|default:''|escape }}">
+            Editar
+          </button>
+          <button type="button"
+                  class="btn btn-outline btn-sm btn-danger-link"
+                  data-open-delete
+                  data-delete-id="{{ t.pk }}"
+                  data-delete-modalidade="{{ t.modalidade|escape }}"
+                  data-delete-ct="{{ t.ct.nome|escape }}"
+                  data-delete-date="{{ t.data|date:'d/m/Y' }}"
+                  data-delete-time="{{ t.hora_inicio|time:'H:i' }} - {{ t.hora_fim|time:'H:i' }}"
+                  aria-label="Excluir treino {{ t.modalidade }}">
+            Excluir treino
+          </button>
+        </div>
       </footer>
     </article>
     {% endfor %}
@@ -114,7 +127,7 @@
   <div class="empty-state">
     <h2>Você ainda não possui treinos cadastrados.</h2>
     <p>Crie seu primeiro treino para montar a agenda dos alunos.</p>
-    <a href="{% url 'treino_create' %}" class="btn">Cadastrar treino</a>
+  <button type="button" class="btn" data-open-create>Cadastrar treino</button>
   </div>
   {% endif %}
 
@@ -177,11 +190,35 @@
 </div>
 {% endwith %}
 
+<div class="modal-backdrop" id="delete-treino-modal" aria-hidden="true" role="dialog" aria-labelledby="delete-treino-modal-title">
+  <div class="modal-card modal-card--narrow">
+    <header class="modal-card__header">
+      <h2 id="delete-treino-modal-title">Confirmar exclusão</h2>
+      <button type="button" class="modal-close" data-close-delete aria-label="Fechar confirmação">&times;</button>
+    </header>
+    <form method="post" class="modal-delete-form">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="delete_treino">
+      <input type="hidden" name="treino_id" value="">
+      <div class="modal-body">
+        <p>Tem certeza de que deseja excluir o treino <strong data-delete-modalidade></strong>?</p>
+        <p><span data-delete-summary></span></p>
+        <p class="modal-warning">Essa ação não poderá ser desfeita.</p>
+      </div>
+      <div class="modal-actions">
+  <button type="submit" class="btn btn-red">Excluir</button>
+        <button type="button" class="btn btn-outline" data-close-delete>Cancelar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <script>
   (function() {
     const modal = document.getElementById('treino-modal');
     if (!modal) { return; }
-    const openBtn = document.getElementById('open-create-treino');
+    const deleteModal = document.getElementById('delete-treino-modal');
+    const createButtons = document.querySelectorAll('[data-open-create]');
     const closeButtons = modal.querySelectorAll('[data-close-modal]');
     const firstField = modal.querySelector('input, select, textarea');
     const form = modal.querySelector('form');
@@ -254,12 +291,12 @@
       modal.setAttribute('aria-hidden', 'true');
     }
 
-    if (openBtn) {
-      openBtn.addEventListener('click', () => {
+    createButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
         setMode('create');
         openModal();
       });
-    }
+    });
 
     closeButtons.forEach(btn => btn.addEventListener('click', closeModal));
 
@@ -270,8 +307,12 @@
     });
 
     document.addEventListener('keydown', (event) => {
-      if (event.key === 'Escape' && modal.classList.contains('is-open')) {
+      if (event.key !== 'Escape') { return; }
+      if (modal.classList.contains('is-open')) {
         closeModal();
+      }
+      if (deleteModal && deleteModal.classList.contains('is-open')) {
+        hideDeleteModal();
       }
     });
 
@@ -319,6 +360,63 @@
         setMode('create', hasErrors ? null : {});
       }
       openModal();
+    }
+
+    function showDeleteModal(data) {
+      if (!deleteModal) { return; }
+      const summaryEl = deleteModal.querySelector('[data-delete-summary]');
+      const modalidadeEl = deleteModal.querySelector('[data-delete-modalidade]');
+      const formDelete = deleteModal.querySelector('form');
+      const treinoIdInput = formDelete.querySelector('input[name="treino_id"]');
+      if (modalidadeEl) {
+        modalidadeEl.textContent = data.modalidade || '';
+      }
+      if (summaryEl) {
+        const parts = [];
+        if (data.ct) { parts.push(data.ct); }
+        if (data.date) { parts.push(data.date); }
+        if (data.time) { parts.push(data.time); }
+        summaryEl.textContent = parts.filter(Boolean).join(' · ');
+      }
+      treinoIdInput.value = data.id || '';
+      deleteModal.classList.add('is-open');
+      deleteModal.setAttribute('aria-hidden', 'false');
+      const primaryBtn = formDelete.querySelector('.btn-danger');
+      if (primaryBtn) {
+        setTimeout(() => primaryBtn.focus(), 50);
+      }
+    }
+
+    function hideDeleteModal() {
+      if (!deleteModal) { return; }
+      deleteModal.classList.remove('is-open');
+      deleteModal.setAttribute('aria-hidden', 'true');
+    }
+
+    if (deleteModal) {
+      const deleteButtons = document.querySelectorAll('[data-open-delete]');
+      const dismissButtons = deleteModal.querySelectorAll('[data-close-delete]');
+
+      deleteButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+          const data = {
+            id: btn.dataset.deleteId,
+            modalidade: btn.dataset.deleteModalidade,
+            ct: btn.dataset.deleteCt,
+            date: btn.dataset.deleteDate,
+            time: btn.dataset.deleteTime,
+          };
+          showDeleteModal(data);
+        });
+      });
+
+      deleteModal.addEventListener('click', (event) => {
+        if (event.target === deleteModal) {
+          hideDeleteModal();
+        }
+      });
+
+      dismissButtons.forEach(btn => btn.addEventListener('click', hideDeleteModal));
     }
   })();
 </script>

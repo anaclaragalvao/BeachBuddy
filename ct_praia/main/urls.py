@@ -23,7 +23,6 @@ urlpatterns = [
     path("ct/<int:pk>/editar/", views.CTUpdateView.as_view(), name="ct_update"),
     path("ct/<int:pk>/excluir/", views.CTDeleteView.as_view(), name="ct_delete"),
     path("professor/treinos/novo/", views.TreinoCreateView.as_view(), name="treino_create"),
-    path("professor/treinos/<int:pk>/excluir/", views.TreinoDeleteView.as_view(), name="treino_delete"),
     # Perfil
     path("perfil/", views.perfil_detail, name="perfil_detail"),
     path("perfil/editar/", views.perfil_editar, name="perfil_editar"),

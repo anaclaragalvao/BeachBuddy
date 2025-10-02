@@ -1,12 +1,3 @@
-{% extends "base.html" %}
-{% block title %}Excluir Treino{% endblock %}
-{% block content %}
-<h1>Confirmar exclusão</h1>
-<p>Tem certeza que deseja excluir o treino <strong>{{ object.modalidade }}</strong> em {{ object.data }} {{
-    object.hora_inicio }}?</p>
-<form method="post">
-    {% csrf_token %}
-    <button type="submit" class="btn btn-red">Confirmar</button>
-    <a href="{% url 'prof_dashboard' %}" class="btn btn-outline">Cancelar</a>
-</form>
-{% endblock %}
+{% comment %}
+    Template removido: a confirmação de exclusão de treinos agora acontece via modal no dashboard do professor.
+{% endcomment %}

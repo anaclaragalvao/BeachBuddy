@@ -323,8 +323,26 @@ footer {
 
 .treino-card__footer {
     display: flex;
+    justify-content: space-between;
     gap: 10px;
     flex-wrap: wrap;
+}
+
+.treino-card__actions {
+    display: inline-flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.btn-danger-link {
+    --btn-color: var(--bb-red);
+    border-color: rgba(255, 39, 95, 0.4);
+    color: var(--bb-red);
+}
+
+.btn-danger-link:hover {
+    background: rgba(255, 39, 95, 0.08);
+    border-color: rgba(255, 39, 95, 0.7);
 }
 
 .empty-state {
@@ -1123,6 +1141,10 @@ footer {
     border: 1px solid rgba(6, 46, 52, 0.12);
 }
 
+.modal-card--narrow {
+    width: min(420px, 94%);
+}
+
 .modal-card__header {
     padding: 20px 24px 12px;
     border-radius: 10px;
@@ -1157,6 +1179,30 @@ footer {
     display: flex;
     flex-direction: column;
     gap: 16px;
+}
+
+.modal-delete-form {
+    padding: 12px 24px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.modal-delete-form .modal-body {
+    color: var(--bb-text);
+    line-height: 1.5;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.modal-delete-form .modal-body p {
+    margin: 0;
+}
+
+.modal-delete-form .modal-warning {
+    color: var(--bb-red);
+    font-weight: 600;
 }
 
 .modal-form__grid {

@@ -200,6 +200,18 @@ def prof_dashboard(request):
                 show_treino_modal = True
                 modal_mode = "edit"
                 editing_treino_id = treino_obj.pk
+        elif action == "delete_treino":
+            treino_id = request.POST.get("treino_id")
+            if not treino_id:
+                messages.error(request, "Treino inválido para exclusão.")
+                return redirect("prof_dashboard")
+            try:
+                treino_obj = Treino.objects.get(pk=treino_id, professor=request.user)
+            except Treino.DoesNotExist:
+                messages.error(request, "Não encontramos esse treino para excluir.")
+            else:
+                treino_obj.delete()
+            return redirect("prof_dashboard")
 
     now = timezone.localtime()
     upcoming_filter = Q(data__gt=now.date()) | (Q(data=now.date()) & Q(hora_fim__gte=now.time()))
@@ -546,14 +558,6 @@ class TreinoCreateView(ProfessorRequiredMixin, CreateView):
                 return self.form_invalid(form)
         return super().form_valid(form)
 
-
-class TreinoDeleteView(ProfessorRequiredMixin, DeleteView):
-    model = Treino
-    template_name = "professor/treino_confirm_delete.html"
-    success_url = reverse_lazy("prof_dashboard")
-
-    def get_queryset(self):
-        return Treino.objects.filter(professor=self.request.user)
 
 # --- Perfil (Aluno/Professor) ---
 @login_required
