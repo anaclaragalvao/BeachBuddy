@@ -126,12 +126,62 @@ def signup_gerente(request):
 
 @professor_required
 def prof_dashboard(request):
-    # Dashboard mínimo: lista de treinos que o professor ministra
-    treinos = (
-        request.user.treinos_ministrados.select_related("ct").order_by("data", "hora_inicio")
-        if request.user.is_authenticated else []
+    base_qs = (
+        request.user.treinos_ministrados.select_related("ct")
+        .annotate(
+            confirmadas=Count(
+                "inscricoes",
+                filter=Q(inscricoes__status=Inscricao.Status.CONFIRMADA),
+            )
+        )
     )
-    return render(request, "professor/dashboard.html", {"treinos": treinos})
+    now = timezone.localtime()
+    upcoming_filter = Q(data__gt=now.date()) | (Q(data=now.date()) & Q(hora_fim__gte=now.time()))
+    base_upcoming_qs = base_qs.filter(upcoming_filter)
+    qs = base_upcoming_qs.order_by("data", "hora_inicio")
+
+    selected_date = request.GET.get("data", "")
+    raw_ct = request.GET.get("ct", "")
+    selected_ct = None
+
+    if selected_date:
+        qs = qs.filter(data=selected_date)
+    if raw_ct:
+        try:
+            selected_ct = int(raw_ct)
+            qs = qs.filter(ct_id=selected_ct)
+        except (TypeError, ValueError):
+            selected_ct = None
+
+    treinos = list(qs)
+    for treino in treinos:
+        confirmadas = getattr(treino, "confirmadas", 0) or 0
+        treino.vagas_disponiveis = max(treino.vagas - confirmadas, 0)
+    total_treinos = len(treinos)
+    upcoming_qs = base_upcoming_qs
+    next_treino_alunos = 0
+    next_treino = None
+    upcoming_for_stats = upcoming_qs
+    if selected_date:
+        upcoming_for_stats = upcoming_for_stats.filter(data=selected_date)
+    if selected_ct:
+        upcoming_qs = upcoming_qs.filter(ct_id=selected_ct)
+        upcoming_for_stats = upcoming_for_stats.filter(ct_id=selected_ct)
+    next_treino = upcoming_for_stats.order_by("data", "hora_inicio").first()
+    if next_treino:
+        next_treino_alunos = next_treino.inscricoes.filter(status=Inscricao.Status.CONFIRMADA).count()
+
+    cts = request.user.cts_associados.order_by("nome")
+    context = {
+        "treinos": treinos,
+        "cts": cts,
+        "selected_date": selected_date,
+        "selected_ct": selected_ct,
+        "total_treinos": total_treinos,
+        "next_treino": next_treino,
+        "next_treino_alunos": next_treino_alunos,
+    }
+    return render(request, "professor/dashboard.html", context)
 
 @aluno_required
 def meus_treinos(request):
