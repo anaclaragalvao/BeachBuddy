@@ -33,13 +33,19 @@ ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", ".herokuapp.com,localhost,127.0.0.1")
 
 
 # Para desenvolvimento local com HTTPS (p.ex., https://localhost:8000) e proxies
-CSRF_TRUSTED_ORIGINS = [
-    "http://localhost:8000",
-    "https://localhost:8000",
-    "http://127.0.0.1:8000",
-    "https://127.0.0.1:8000",
-]
+# CSRF_TRUSTED_ORIGINS = [
+#     "http://localhost:8000",
+#     "https://localhost:8000",
+#     "http://127.0.0.1:8000",
+#     "https://127.0.0.1:8000",
+# ]
 
+#(prod)
+CSRF_TRUSTED_ORIGINS = os.getenv("CSRF_TRUSTED_ORIGINS", "").split(",")
+if not any(CSRF_TRUSTED_ORIGINS):
+    CSRF_TRUSTED_ORIGINS = [f"https://{h}" for h in ALLOWED_HOSTS if h and not h.startswith(".")]
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+SECURE_SSL_REDIRECT = True
 
 # Application definition
 
