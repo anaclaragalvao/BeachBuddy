@@ -1,15 +1,34 @@
 {% extends "base.html" %}
 {% block title %}Escolher CT{% endblock %}
+{% block body_class %}aluno-page{% endblock %}
 {% block content %}
-<h1>Escolha um Centro de Treinamento</h1>
-<ul>
-  {% for ct in cts %}
-  <li>
-    <a href="{% url 'novo_treino_escolher_treino' ct.id %}">{{ ct.nome }}</a>
-  </li>
-  {% empty %}
-  <li>Nenhum CT disponível.</li>
-  {% endfor %}
-</ul>
-<p><a href="{% url 'meus_treinos' %}">Voltar</a></p>
+<section class="aluno-header">
+    <div>
+        <h1>Escolha um Centro</h1>
+        <p>Selecione o centro onde deseja se inscrever em um treino.</p>
+    </div>
+    <div class="aluno-actions">
+        <a href="{% url 'meus_treinos' %}" class="btn btn-outline">Voltar</a>
+    </div>
+</section>
+
+{% if cts %}
+<div class="wizard-grid">
+    {% for ct in cts %}
+    <article class="wizard-card">
+        <h2>{{ ct.nome }}</h2>
+        <p>{{ ct.modalidades|truncatechars:80 }}</p>
+        <footer>
+            <a class="btn btn-sm" href="{% url 'novo_treino_escolher_treino' ct.id %}">Ver treinos</a>
+        </footer>
+    </article>
+    {% endfor %}
+</div>
+{% else %}
+<div class="empty-box">
+    <h2>Nenhum centro disponível</h2>
+    <p>Volte mais tarde para verificar novos centros.</p>
+    <a href="{% url 'meus_treinos' %}" class="btn">Voltar</a>
+</div>
+{% endif %}
 {% endblock %}

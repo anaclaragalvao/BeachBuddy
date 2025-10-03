@@ -1,24 +1,69 @@
 {% extends "base.html" %}
 {% block title %}Meus Treinos{% endblock %}
+{% block body_class %}aluno-page{% endblock %}
 {% block content %}
-<h1>Meus Treinos</h1>
-<p><a href="{% url 'novo_treino_ct' %}">+ Novo treino</a></p>
+<section class="aluno-header">
+    <div>
+        <h1>Meus Treinos</h1>
+        <p>Aqui você acompanha suas inscrições e pode cancelar quando necessário.</p>
+    </div>
+    <div class="aluno-actions">
+        <a class="btn" href="{% url 'novo_treino_ct' %}">+ Novo treino</a>
+    </div>
+</section>
+
+<section class="aluno-stats" aria-label="Resumo">
+    <div class="aluno-stat">
+        <span>Total de inscrições</span>
+        <strong>{{ inscricoes|length }}</strong>
+    </div>
+    <div class="aluno-stat">
+        <span>Ativas</span>
+        <strong>{{ inscricoes|dictsort:"status"|length }}</strong>
+    </div>
+</section>
+
 {% if inscricoes %}
-<ul>
+<section class="inscricoes-grid" aria-live="polite">
     {% for i in inscricoes %}
-    <li>
-        {{ i.treino.modalidade }} — {{ i.treino.data }} {{ i.treino.hora_inicio }}
-        (CT: {{ i.treino.ct.nome }}) — Status: {{ i.get_status_display }}
-        {% if i.status != 'CANCELADA' %}
-        <form method="post" action="{% url 'inscricao_cancelar' i.pk %}" style="display:inline">
-            {% csrf_token %}
-            <button type="submit">Cancelar</button>
-        </form>
-        {% endif %}
-    </li>
+    <article class="inscricao-card">
+        <header>
+            <h2>{{ i.treino.modalidade }}</h2>
+            <div class="inscricao-meta">
+                <span>{{ i.treino.data|date:"d/m/Y" }}</span>
+                <span>{{ i.treino.hora_inicio|time:"H:i" }} - {{ i.treino.hora_fim|time:"H:i" }}</span>
+                <span>CT: {{ i.treino.ct.nome }}</span>
+            </div>
+        </header>
+        <ul class="inscricao-details">
+            <li>Nível: {{ i.treino.nivel }}</li>
+            <li>Vagas: {{ i.treino.vagas }}</li>
+        </ul>
+        <p>
+            {% if i.status == 'CONFIRMADA' %}
+            <span class="inscricao-status inscricao-status--confirmada">CONFIRMADA</span>
+            {% elif i.status == 'PENDENTE' %}
+            <span class="inscricao-status inscricao-status--pendente">PENDENTE</span>
+            {% else %}
+            <span class="inscricao-status inscricao-status--cancelada">CANCELADA</span>
+            {% endif %}
+        </p>
+        <div class="inscricao-actions">
+            {% if i.status != 'CANCELADA' %}
+            <form method="post" action="{% url 'inscricao_cancelar' i.pk %}">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-outline btn-sm">Cancelar</button>
+            </form>
+            {% endif %}
+        </div>
+    </article>
     {% endfor %}
-</ul>
+</section>
 {% else %}
-<p>Você ainda não tem inscrições.</p>
+<div class="empty-box">
+    <h2>Nenhuma inscrição ainda</h2>
+    <p>Você ainda não se inscreveu em nenhum treino. Que tal começar agora?</p>
+    <a class="btn" href="{% url 'novo_treino_ct' %}">Encontrar treinos</a>
+</div>
 {% endif %}
 {% endblock %}
