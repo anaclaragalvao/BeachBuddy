@@ -21,6 +21,7 @@ from .decorators import aluno_required, professor_required
 AUTO_LOGIN = True  # troque para False se quiser redirecionar pro login
 
 def home(request):
+    """Landing: redireciona usuários autenticados conforme o perfil; exibe métricas se anônimo."""
     if request.user.is_authenticated and hasattr(request.user, "usuario"):
         tipo = request.user.usuario.tipo
         if tipo == Usuario.Tipo.ALUNO:
@@ -64,6 +65,7 @@ def is_prof_or_manager(user):
 
 @transaction.atomic
 def signup_aluno(request):
+    """Cadastro de aluno com criação de perfil Usuario e opção de auto login."""
     if request.method == "POST":
         form = SignupAlunoForm(request.POST)
         if form.is_valid():
@@ -87,6 +89,7 @@ def signup_aluno(request):
 
 @transaction.atomic
 def signup_professor(request):
+    """Cadastro de professor; cria perfil Usuario (PROFESSOR) e auto login opcional."""
     if request.method == "POST":
         form = SignupProfessorForm(request.POST)
         if form.is_valid():
@@ -109,6 +112,7 @@ def signup_professor(request):
 
 @transaction.atomic
 def signup_gerente(request):
+    """Cadastro de gerente; cria perfil Usuario (GERENTE) e redireciona para gestão de CTs."""
     if request.method == "POST":
         form = SignupGerenteForm(request.POST)
         if form.is_valid():
@@ -131,6 +135,7 @@ def signup_gerente(request):
 
 @professor_required
 def prof_dashboard(request):
+    """Dashboard do professor: lista treinos futuros, cria/edita/exclui (modo modal) e mostra métricas."""
     base_qs = (
         request.user.treinos_ministrados.select_related("ct")
         .annotate(
@@ -293,6 +298,7 @@ def prof_dashboard(request):
 
 @aluno_required
 def meus_treinos(request):
+    """Lista inscrições futuras do aluno (exclui canceladas) ordenadas cronologicamente."""
     now = timezone.localtime()
     upcoming_filter = Q(treino__data__gt=now.date()) | (
         Q(treino__data=now.date()) & Q(treino__hora_fim__gte=now.time())
@@ -311,6 +317,7 @@ def meus_treinos(request):
 # --- Inscrições (Aluno) ---
 @aluno_required
 def inscricao_criar(request, treino_id: int):
+    """Cria ou reativa inscrição (CONFIRMADA) respeitando limite de vagas; bloqueia se lotado."""
     if request.method != "POST":
         return redirect("meus_treinos")
     treino = get_object_or_404(Treino, pk=treino_id)
@@ -339,6 +346,7 @@ def inscricao_criar(request, treino_id: int):
 
 @aluno_required
 def inscricao_cancelar(request, pk: int):
+    """Cancela (marca como CANCELADA) a inscrição do aluno se não estiver já cancelada."""
     if request.method != "POST":
         return redirect("meus_treinos")
     insc = get_object_or_404(Inscricao, pk=pk, aluno=request.user)
@@ -350,12 +358,14 @@ def inscricao_cancelar(request, pk: int):
 
 @aluno_required
 def novo_treino_escolher_ct(request):
+    """Passo 1 do fluxo de inscrição: exibe CTs para o aluno escolher."""
     cts = CentroTreinamento.objects.all().order_by("nome")
     return render(request, "aluno/novo_treino_escolher_ct.html", {"cts": cts})
 
 
 @aluno_required
 def novo_treino_escolher_treino(request, ct_id: int):
+    """Passo 2: lista treinos futuros do CT com contagem de confirmadas e marca os já inscritos."""
     ct = get_object_or_404(CentroTreinamento, pk=ct_id)
     today = timezone.localdate()
     treinos = (
@@ -377,6 +387,7 @@ def novo_treino_escolher_treino(request, ct_id: int):
     return render(request, "aluno/novo_treino_escolher_treino.html", context)
 
 class CTListView(ListView):
+    """Lista geral de CTs com anotações (treinos futuros, total de professores) e filtro por perfil."""
     model = CentroTreinamento
     template_name = "ct/ct_list.html"
     context_object_name = "cts"
@@ -421,6 +432,7 @@ class CTListView(ListView):
         return ctx
 
 class CTDetailView(DetailView):
+    """Detalhe de um CT: professores, próximos treinos (ou todos), métricas simples e marca inscrições do usuário."""
     model = CentroTreinamento
     template_name = "ct/ct_detail.html"
     context_object_name = "ct"
@@ -462,6 +474,7 @@ class CTDetailView(DetailView):
         return ctx
 
 class CTCreateView(ProfOrManagerRequiredMixin, CreateView):
+    """Criação de CT por professor (genérico) ou gerente; gerente vira responsável automaticamente."""
     model = CentroTreinamento
     form_class = CentroTreinamentoForm
     template_name = "ct/ct_form.html"
@@ -475,6 +488,7 @@ class CTCreateView(ProfOrManagerRequiredMixin, CreateView):
         return super().form_valid(form)
 
 class CTUpdateView(ProfOrManagerRequiredMixin, UpdateView):
+    """Edição de CT limitada ao gerente ou superuser; professores não gerentes não podem alterar outros CTs."""
     model = CentroTreinamento
     form_class = CentroTreinamentoForm
     template_name = "ct/ct_form.html"
@@ -490,6 +504,7 @@ class CTUpdateView(ProfOrManagerRequiredMixin, UpdateView):
         return qs
 
 class CTDeleteView(ProfOrManagerRequiredMixin, DeleteView):
+    """Exclusão de CT (apenas gerente do CT ou superuser)."""
     model = CentroTreinamento
     template_name = "ct/ct_confirm_delete.html"
     success_url = reverse_lazy("ct_list")
@@ -497,6 +512,7 @@ class CTDeleteView(ProfOrManagerRequiredMixin, DeleteView):
 
 # --- Treino CRUD (Professor) ---
 class TreinoListView(ProfessorRequiredMixin, ListView):
+    """Lista treinos (contextual: filtrável no template)  restrito a professor/superuser."""
     model = Treino
     template_name = "professor/treino_list.html"
     context_object_name = "treinos"
@@ -514,6 +530,7 @@ class TreinoListView(ProfessorRequiredMixin, ListView):
 # --- Gerente: meus CTs ---
 @login_required
 def gerente_meus_cts(request):
+    """Dashboard simples do gerente: lista CTs sob sua gestão com métricas agregadas (treinos futuros/professores)."""
     if not hasattr(request.user, "usuario") or request.user.usuario.tipo != Usuario.Tipo.GERENTE:
         # Redireciona conforme perfil
         return redirect("home")
@@ -570,6 +587,7 @@ def gerente_ct_professores(request, pk: int):
 
 
 class GerenteCTCreateView(CreateView):
+    """Criação de CT via fluxo específico do gerente (define gerente automaticamente)."""
     model = CentroTreinamento
     form_class = CentroTreinamentoForm
     template_name = "gerente/novo_ct.html"
@@ -587,6 +605,7 @@ class GerenteCTCreateView(CreateView):
 
 # --- Treino CRUD (Professor) ---
 class TreinoCreateView(ProfessorRequiredMixin, CreateView):
+    """Criação de treino (professor): valida conflito de horário e associação ao CT."""
     model = Treino
     form_class = TreinoForm
     template_name = "professor/treino_form.html"
@@ -623,6 +642,7 @@ class TreinoCreateView(ProfessorRequiredMixin, CreateView):
 # --- Perfil (Aluno/Professor) ---
 @login_required
 def perfil_detail(request):
+    """Exibe dados do perfil (Aluno/Professor) com lista formatada de certificações."""
     # Apenas Aluno/Professor (ou superuser) podem ver/editar o próprio perfil
     if not request.user.is_superuser:
         if not hasattr(request.user, "usuario") or request.user.usuario.tipo not in (
@@ -649,6 +669,7 @@ def perfil_detail(request):
 
 @login_required
 def perfil_editar(request):
+    """Form de edição de perfil (Aluno/Professor); impede outros perfis não autorizados."""
     if not request.user.is_superuser:
         if not hasattr(request.user, "usuario") or request.user.usuario.tipo not in (
             Usuario.Tipo.ALUNO,
