@@ -1,23 +1,42 @@
 {% extends 'base.html' %}
+{% block title %}Professores do {{ ct.nome }}{% endblock %}
+{% block body_class %}gerente-page{% endblock %}
 {% block content %}
-<h1>Professores do CT: {{ ct.nome }}</h1>
-<p><a href="{% url 'meus_cts' %}">&larr; Voltar</a></p>
-<form method="post">
-  {% csrf_token %}
-  <fieldset>
-    <legend>Selecionar Professores Autorizados</legend>
-    {{ form.professores.errors }}
-    {{ form.professores }}
-  </fieldset>
-  <button type="submit">Salvar</button>
-</form>
+<section class="gerente-form">
+    <div class="gerente-form__wrapper">
+        <header class="gerente-form__header">
+            <a href="{% url 'meus_cts' %}" class="link-back">&larr; Meus CTs</a>
+            <h1>Equipe de professores</h1>
+            <p>Selecione quais professores podem ministrar treinos no <strong>{{ ct.nome }}</strong>.</p>
+        </header>
 
-<h2>Professores Associados</h2>
-<ul>
-  {% for p in professores %}
-    <li>{{ p.get_full_name|default:p.username }}</li>
-  {% empty %}
-    <li>Nenhum professor associado ainda.</li>
-  {% endfor %}
-</ul>
+        <form method="post" class="gerente-form__form">
+            {% csrf_token %}
+            <div class="gerente-form__field{% if form.professores.errors %} has-error{% endif %}">
+                <label for="{{ form.professores.id_for_label }}">Professores disponíveis</label>
+                {{ form.professores }}
+                <small>Use Ctrl/Cmd para selecionar múltiplos nomes.</small>
+                {% for error in form.professores.errors %}<span class="error-text">{{ error }}</span>{% endfor %}
+            </div>
+
+            <div class="gerente-form__actions">
+                <button type="submit" class="btn">Salvar alterações</button>
+                <a href="{% url 'meus_cts' %}" class="btn btn-outline">Cancelar</a>
+            </div>
+        </form>
+    </div>
+</section>
+
+<section class="gerente-card">
+    <h2>Professores associados</h2>
+    {% if professores %}
+    <ul class="gerente-tag-list">
+        {% for professor in professores %}
+        <li class="gerente-tag">{{ professor.get_full_name|default:professor.username }}</li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <p class="gerente-ct-card__empty">Nenhum professor associado ainda.</p>
+    {% endif %}
+</section>
 {% endblock %}
