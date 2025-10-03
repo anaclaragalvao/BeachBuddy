@@ -1,1 +1,1 @@
-web: gunicorn ct_praia/wsgi.py --log-file - 
+web: gunicorn ct_praia.wsgi:application --chdir ct_praia --log-file -
