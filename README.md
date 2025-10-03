@@ -115,12 +115,15 @@ runtime.txt (versão Python para plataformas compatíveis)
 
 ## 9. O que não funcionou
 - Ao se inscrever, o aluno vê 1/10 vagas(exemplo), esse 1 era para ser o que resta de vagas, mas é quantos alunos estão inscritos.
+- Ao ver todos os treinos de um CT ao clicar Cts_> agenda completa, o botão de se inscrever está disponível para treinos que já passaram, apesar que conseguimos filtrar pra em Meus treinos só aparecerem os próximos
+- Tecnicamente o professor não poderia criar um treino em uma data antiga, e está podendo.
 
 ## 10. Limitações / Próximos Passos
 - Não há grandes implementações de seguranca no site, importante para producao
 - Filtrar localidade, dia e esporte.
 
 ## 11. Como Executar Localmente
+# Tem que comentar algumas coisas allowed_hosts e csrf_trusted_origins da producao e descomentar a do local.
 1. Criar e ativar virtualenv (Windows PowerShell):
    ```powershell
    python -m venv .venv; .\.venv\Scripts\Activate.ps1
