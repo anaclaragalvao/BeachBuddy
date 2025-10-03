@@ -1,27 +1,94 @@
 {% extends "base.html" %}
 {% block title %}Meus CTs{% endblock %}
+{% block body_class %}gerente-page{% endblock %}
 {% block content %}
-<h1>Meus CTs</h1>
-<p><a href="{% url 'novo_ct' %}">+ Novo CT</a></p>
+<section class="gerente-header">
+    <div>
+        <h1>Centros gerenciados</h1>
+        <p>Monitore seus centros de treinamento, equipe e próximos treinos em um só lugar.</p>
+    </div>
+    <div class="gerente-actions">
+        <a href="{% url 'novo_ct' %}" class="btn">+ Novo CT</a>
+    </div>
+</section>
+
+<section class="gerente-stats">
+    <div class="gerente-stat">
+        <span>CTs ativos</span>
+        <strong>{{ total_cts }}</strong>
+    </div>
+    <div class="gerente-stat">
+        <span>Professores associados</span>
+        <strong>{{ total_professores }}</strong>
+    </div>
+    <div class="gerente-stat">
+        <span>Treinos futuros</span>
+        <strong>{{ total_treinos }}</strong>
+    </div>
+</section>
+
 {% if cts %}
-<ul>
+<div class="gerente-ct-grid">
     {% for ct in cts %}
-    <li>
-        <strong>{{ ct.nome }}</strong><br>
-        Endereço: {{ ct.endereco }}<br>
-        Contato: {{ ct.contato }}<br>
-        Modalidades: {{ ct.modalidades|linebreaksbr }}
-        <br>Professores: {% for p in ct.professores.all %}{{ p.get_full_name|default:p.username }}{% if not forloop.last %}, {% endif %}{% empty %}<em>nenhum</em>{% endfor %}
-        <div style="margin-top: .5rem;">
-            <a href="{% url 'ct_detail' ct.pk %}">Ver página do CT</a>
-            · <a href="{% url 'ct_update' ct.pk %}">Editar</a>
-            · <a href="{% url 'gerente_ct_professores' ct.pk %}">Professores</a>
-            · <a href="{% url 'ct_delete' ct.pk %}">Excluir</a>
+    <article class="ct-card gerente-ct-card">
+        <header class="gerente-ct-card__header">
+            <div>
+                <h2>{{ ct.nome }}</h2>
+                <span class="gerente-ct-card__meta">{{ ct.endereco }}</span>
+            </div>
+            <span class="badge" aria-label="Treinos futuros">{{ ct.treinos_futuros }} treinos ativos</span>
+        </header>
+
+        <div class="gerente-ct-card__body">
+            <dl class="gerente-ct-card__details">
+                <div>
+                    <dt>Contato</dt>
+                    <dd>{{ ct.contato|default:"—" }}</dd>
+                </div>
+                <div>
+                    <dt>CNPJ</dt>
+                    <dd>{{ ct.cnpj|default:"—" }}</dd>
+                </div>
+            </dl>
+            <div class="gerente-ct-card__modalidades">
+                <span class="label">Modalidades</span>
+                <p>{{ ct.modalidades|linebreaksbr }}</p>
+            </div>
+            <div class="gerente-ct-card__professores">
+                <span class="label">Professores</span>
+                {% with professores=ct.professores.all %}
+                {% if professores %}
+                <ul>
+                    {% for professor in professores %}
+                    <li>{{ professor.get_full_name|default:professor.username }}</li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="gerente-ct-card__empty">Nenhum professor associado ainda.</p>
+                {% endif %}
+                {% endwith %}
+            </div>
         </div>
-    </li>
+
+        <footer class="gerente-ct-card__footer">
+            <div class="gerente-ct-card__primary">
+                <a href="{% url 'ct_detail' ct.pk %}" class="btn btn-sm">Ver página do CT</a>
+                <a href="{% url 'gerente_ct_professores' ct.pk %}" class="btn btn-sm btn-outline">Gerenciar
+                    professores</a>
+            </div>
+            <div class="gerente-ct-card__secondary">
+                <a href="{% url 'ct_update' ct.pk %}" class="link-inline">Editar dados</a>
+                <a href="{% url 'ct_delete' ct.pk %}" class="link-inline link-danger">Excluir</a>
+            </div>
+        </footer>
+    </article>
     {% endfor %}
-</ul>
+</div>
 {% else %}
-<p>Você ainda não cadastrou nenhum CT.</p>
+<div class="empty-state">
+    <h2>Nenhum CT cadastrado</h2>
+    <p>Cadastre seu primeiro Centro de Treinamento para começar a adicionar professores e treinos.</p>
+    <a href="{% url 'novo_ct' %}" class="btn">Cadastrar CT</a>
+</div>
 {% endif %}
 {% endblock %}

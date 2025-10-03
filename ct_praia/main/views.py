@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth import authenticate, login
-from django.contrib.auth.decorators import user_passes_test
+from django.contrib.auth.decorators import login_required, user_passes_test
 from django.db import transaction
 from django.db.models import Count, Q
 from django.utils import timezone
@@ -15,17 +15,19 @@ from .mixins import ProfOrManagerRequiredMixin, ProfessorRequiredMixin
 from .forms import SignupAlunoForm, SignupProfessorForm, SignupGerenteForm
 from .models import Usuario, Inscricao
 from .decorators import aluno_required, professor_required
-from django.contrib.auth.decorators import login_required
 
 AUTO_LOGIN = True  # troque para False se quiser redirecionar pro login
 
 def home(request):
-    # Redireciona usuários logados para seus fluxos principais
     if request.user.is_authenticated and hasattr(request.user, "usuario"):
-        if request.user.usuario.tipo == Usuario.Tipo.ALUNO:
+        tipo = request.user.usuario.tipo
+        if tipo == Usuario.Tipo.ALUNO:
             return redirect("meus_treinos")
-        if request.user.usuario.tipo == Usuario.Tipo.PROFESSOR:
+        if tipo == Usuario.Tipo.PROFESSOR:
             return redirect("prof_dashboard")
+        if tipo == Usuario.Tipo.GERENTE:
+            return redirect("meus_cts")
+
 
     # Métricas simples para a landing
     metric_cts = CentroTreinamento.objects.count()
@@ -102,6 +104,7 @@ def signup_professor(request):
         form = SignupProfessorForm()
     return render(request, "registration/signup_professor.html", {"form": form})
 
+
 @transaction.atomic
 def signup_gerente(request):
     if request.method == "POST":
@@ -116,7 +119,7 @@ def signup_gerente(request):
                 if user:
                     login(request, user)
                     messages.success(request, "Cadastro de gerente realizado! Bem-vindo(a).")
-                    return redirect("prof_dashboard")
+                    return redirect("meus_cts")
             messages.success(request, "Cadastro de gerente realizado! Faça login para continuar.")
             return redirect("login")
     else:
@@ -469,6 +472,13 @@ class CTDeleteView(ProfOrManagerRequiredMixin, DeleteView):
     template_name = "ct/ct_confirm_delete.html"
     success_url = reverse_lazy("ct_list")
 
+
+# --- Treino CRUD (Professor) ---
+class TreinoListView(ProfessorRequiredMixin, ListView):
+    model = Treino
+    template_name = "professor/treino_list.html"
+    context_object_name = "treinos"
+
     def get_queryset(self):
         qs = super().get_queryset()
         u = self.request.user
@@ -487,6 +497,8 @@ def gerente_meus_cts(request):
         return redirect("home")
     cts = CentroTreinamento.objects.filter(gerente=request.user).order_by("nome")
     return render(request, "gerente/meus_cts.html", {"cts": cts})
+
+
 
 
 @login_required
