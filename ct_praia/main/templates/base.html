@@ -27,7 +27,9 @@
             <a href="{% url 'novo_ct' %}">Novo CT</a>
             <a href="{% url 'ct_list' %}">CTs</a>
             {% endif %}
+            {% if user.usuario.tipo != "GERENTE" %}
             <a href="{% url 'perfil_detail' %}">Meu Perfil</a>
+            {% endif %}
             <a href="{% url 'logout' %}">Sair</a>
             {% else %}
             <a href="{% url 'login' %}">Entrar</a>

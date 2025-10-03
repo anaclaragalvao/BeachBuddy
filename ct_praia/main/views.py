@@ -1,6 +1,8 @@
+from datetime import timedelta
+
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
-from django.contrib.auth import authenticate, login
+from django.contrib.auth import authenticate, login, get_user_model
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.db import transaction
 from django.db.models import Count, Q
@@ -223,10 +225,12 @@ def prof_dashboard(request):
 
     selected_date = request.GET.get("data", "")
     raw_ct = request.GET.get("ct", "")
+    selected_period = request.GET.get("period", "").lower()
+    if selected_period not in {"today", "week", "month"}:
+        selected_period = ""
+
     selected_ct = None
 
-    if selected_date:
-        qs = qs.filter(data=selected_date)
     if raw_ct:
         try:
             selected_ct = int(raw_ct)
@@ -234,21 +238,36 @@ def prof_dashboard(request):
         except (TypeError, ValueError):
             selected_ct = None
 
+    if selected_period:
+        if selected_period == "today":
+            qs = qs.filter(data=now.date())
+        elif selected_period == "week":
+            qs = qs.filter(data__range=(now.date(), now.date() + timedelta(days=7)))
+        elif selected_period == "month":
+            qs = qs.filter(data__range=(now.date(), now.date() + timedelta(days=30)))
+        selected_date = ""
+    elif selected_date:
+        qs = qs.filter(data=selected_date)
+
+    qs = qs.order_by("data", "hora_inicio")
     treinos = list(qs)
     for treino in treinos:
         confirmadas = getattr(treino, "confirmadas", 0) or 0
         treino.vagas_disponiveis = max(treino.vagas - confirmadas, 0)
     total_treinos = len(treinos)
-    upcoming_qs = base_upcoming_qs
-    next_treino_alunos = 0
-    next_treino = None
-    upcoming_for_stats = upcoming_qs
-    if selected_date:
-        upcoming_for_stats = upcoming_for_stats.filter(data=selected_date)
+    metrics_source = base_upcoming_qs
     if selected_ct:
-        upcoming_qs = upcoming_qs.filter(ct_id=selected_ct)
-        upcoming_for_stats = upcoming_for_stats.filter(ct_id=selected_ct)
-    next_treino = upcoming_for_stats.order_by("data", "hora_inicio").first()
+        metrics_source = metrics_source.filter(ct_id=selected_ct)
+    treinos_hoje = metrics_source.filter(data=now.date()).count()
+    treinos_semana = metrics_source.filter(
+        data__range=(now.date(), now.date() + timedelta(days=7))
+    ).count()
+    treinos_mes = metrics_source.filter(
+        data__range=(now.date(), now.date() + timedelta(days=30))
+    ).count()
+
+    next_treino_alunos = 0
+    next_treino = qs.first()
     if next_treino:
         next_treino_alunos = next_treino.inscricoes.filter(status=Inscricao.Status.CONFIRMADA).count()
 
@@ -258,9 +277,13 @@ def prof_dashboard(request):
         "cts": cts,
         "selected_date": selected_date,
         "selected_ct": selected_ct,
+        "selected_period": selected_period,
         "total_treinos": total_treinos,
         "next_treino": next_treino,
         "next_treino_alunos": next_treino_alunos,
+        "treinos_hoje": treinos_hoje,
+        "treinos_semana": treinos_semana,
+        "treinos_mes": treinos_mes,
         "treino_form": form,
         "show_treino_modal": show_treino_modal,
         "modal_mode": modal_mode,
@@ -270,10 +293,16 @@ def prof_dashboard(request):
 
 @aluno_required
 def meus_treinos(request):
+    now = timezone.localtime()
+    upcoming_filter = Q(treino__data__gt=now.date()) | (
+        Q(treino__data=now.date()) & Q(treino__hora_fim__gte=now.time())
+    )
     inscricoes = (
         Inscricao.objects
         .select_related("treino", "treino__ct")
         .filter(aluno=request.user)
+        .exclude(status=Inscricao.Status.CANCELADA)
+        .filter(upcoming_filter)
         .order_by("treino__data", "treino__hora_inicio")
     )
     return render(request, "aluno/meus_treinos.html", {"inscricoes": inscricoes})
@@ -298,9 +327,6 @@ def inscricao_criar(request, treino_id: int):
                 return redirect("meus_treinos")
             insc.status = Inscricao.Status.CONFIRMADA
             insc.save(update_fields=["status"])
-            messages.success(request, "Inscrição reativada e confirmada!")
-        else:
-            messages.info(request, "Você já está inscrito neste treino.")
     else:
         if confirmadas >= treino.vagas:
             messages.error(request, "Treino lotado. Não foi possível realizar a inscrição.")
@@ -308,7 +334,6 @@ def inscricao_criar(request, treino_id: int):
         Inscricao.objects.create(
             treino=treino, aluno=request.user, status=Inscricao.Status.CONFIRMADA
         )
-        messages.success(request, "Inscrição realizada com sucesso!")
     return redirect("meus_treinos")
 
 
@@ -320,9 +345,6 @@ def inscricao_cancelar(request, pk: int):
     if insc.status != Inscricao.Status.CANCELADA:
         insc.status = Inscricao.Status.CANCELADA
         insc.save(update_fields=["status"])
-        messages.success(request, "Inscrição cancelada.")
-    else:
-        messages.info(request, "Inscrição já estava cancelada.")
     return redirect("meus_treinos")
 
 
@@ -495,8 +517,35 @@ def gerente_meus_cts(request):
     if not hasattr(request.user, "usuario") or request.user.usuario.tipo != Usuario.Tipo.GERENTE:
         # Redireciona conforme perfil
         return redirect("home")
-    cts = CentroTreinamento.objects.filter(gerente=request.user).order_by("nome")
-    return render(request, "gerente/meus_cts.html", {"cts": cts})
+    today = timezone.localdate()
+    cts = (
+        CentroTreinamento.objects
+        .filter(gerente=request.user)
+        .annotate(
+            treinos_futuros=Count(
+                "treinos",
+                filter=Q(treinos__data__gte=today),
+            )
+        )
+        .prefetch_related("professores")
+        .order_by("nome")
+    )
+    total_cts = cts.count()
+    UserModel = get_user_model()
+    total_professores = (
+        UserModel.objects
+        .filter(cts_associados__gerente=request.user)
+        .distinct()
+        .count()
+    )
+    total_treinos = Treino.objects.filter(ct__gerente=request.user, data__gte=today).count()
+    context = {
+        "cts": cts,
+        "total_cts": total_cts,
+        "total_professores": total_professores,
+        "total_treinos": total_treinos,
+    }
+    return render(request, "gerente/meus_cts.html", context)
 
 
 

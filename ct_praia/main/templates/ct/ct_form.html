@@ -1,11 +1,57 @@
 {% extends "base.html" %}
 {% block title %}{% if view.object %}Editar CT{% else %}Novo CT{% endif %}{% endblock %}
 {% block content %}
-<h1>{% if view.object %}Editar CT{% else %}Novo CT{% endif %}</h1>
-<form method="post" novalidate>
-    {% csrf_token %}
-    {{ form.as_p }}
-    <button type="submit">Salvar</button>
-    <a href="{% url 'ct_list' %}">Cancelar</a>
-</form>
+<section class="ct-form-wrapper">
+    <div class="ct-form-card">
+        <header class="ct-form-header">
+            <p class="form-eyebrow">Centro de Treinamento</p>
+            <h1 class="form-title">{% if view.object %}Editar CT{% else %}Cadastrar novo CT{% endif %}</h1>
+            <p class="form-subtitle">Preencha os dados do seu espaço para que alunos e professores encontrem o melhor lugar para treinar.</p>
+        </header>
+
+        {% if form.non_field_errors %}
+        <div class="form-alert" role="alert">
+            <strong>Revise os dados informados:</strong>
+            <ul>
+                {% for error in form.non_field_errors %}
+                <li>{{ error }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        <form method="post" class="bb-form" novalidate>
+            {% csrf_token %}
+            <div class="form-grid">
+                {% for field in form %}
+                <div class="form-field{% if field.name == 'modalidades' %} form-field-full{% endif %}">
+                    <label for="{{ field.id_for_label }}" class="form-label">
+                        {{ field.label }}
+                        {% if field.field.required %}
+                        <span class="required-indicator" aria-hidden="true">*</span>
+                        <span class="visually-hidden">obrigatório</span>
+                        {% endif %}
+                    </label>
+                    {{ field }}
+                    {% if field.help_text %}
+                    <small class="form-help">{{ field.help_text }}</small>
+                    {% endif %}
+                    {% if field.errors %}
+                    <ul class="field-errors">
+                        {% for error in field.errors %}
+                        <li>{{ error }}</li>
+                        {% endfor %}
+                    </ul>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn">Salvar alterações</button>
+                <a href="{% url 'ct_list' %}" class="btn btn-outline">Cancelar</a>
+            </div>
+        </form>
+    </div>
+</section>
 {% endblock %}

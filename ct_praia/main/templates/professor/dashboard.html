@@ -3,6 +3,11 @@
 {% block body_class %}dashboard-page{% endblock %}
 {% block content %}
 <section class="prof-dashboard">
+  <nav class="dashboard-breadcrumb" aria-label="Navegação">
+    <a href="{% url 'home' %}">Início</a>
+    <span aria-hidden="true">/</span>
+    <span>Dashboard do professor</span>
+  </nav>
   <header class="dashboard-header">
     <div>
       <h1 class="dashboard-title">Olá, professor!</h1>
@@ -14,27 +19,26 @@
   </header>
 
   <section class="dashboard-stats" aria-label="Resumo dos treinos">
-    <article class="stat-card">
-      <span class="stat-label">Treinos encontrados</span>
+    <article class="stat-card" data-icon="📘">
+      <span class="stat-label">Treinos futuros</span>
       <strong class="stat-value">{{ total_treinos }}</strong>
-      {% if total_treinos == 0 %}
-      <span class="stat-footnote">Sem treinos agendados</span>
-      {% endif %}
+      <span class="stat-footnote">Resultado dos filtros abaixo</span>
     </article>
-    <article class="stat-card">
-      <span class="stat-label">Alunos próximo treino</span>
-      {% if next_treino %}
-      <strong class="stat-value">{{ next_treino_alunos }}</strong>
-      {% else %}
-      <strong class="stat-value">—</strong>
-      <span class="stat-footnote">Cadastre um novo treino</span>
-      {% endif %}
+    <article class="stat-card" data-icon="☀️">
+      <span class="stat-label">Hoje</span>
+      <strong class="stat-value">{{ treinos_hoje }}</strong>
+      <span class="stat-footnote">Treinos agendados para hoje</span>
     </article>
-    <article class="stat-card">
+    <article class="stat-card" data-icon="📆">
+      <span class="stat-label">Próximos 7 dias</span>
+      <strong class="stat-value">{{ treinos_semana }}</strong>
+      <span class="stat-footnote">Agenda da próxima semana</span>
+    </article>
+    <article class="stat-card" data-icon="⏰">
       <span class="stat-label">Próximo treino</span>
       {% if next_treino %}
-      <strong class="stat-value">{{ next_treino.data|date:"d/m" }} às {{ next_treino.hora_inicio|time:"H:i" }}</strong>
-      <span class="stat-footnote">{{ next_treino.modalidade }} · {{ next_treino.ct.nome }}</span>
+      <strong class="stat-value">{{ next_treino.data|date:"d/m" }} · {{ next_treino.hora_inicio|time:"H:i" }}</strong>
+      <span class="stat-footnote">{{ next_treino.modalidade }} · {{ next_treino.ct.nome }} · {{ next_treino_alunos }} aluno{% if next_treino_alunos != 1 %}s{% endif %}</span>
       {% else %}
       <strong class="stat-value">—</strong>
       <span class="stat-footnote">Cadastre um novo treino</span>
@@ -60,6 +64,13 @@
       <button type="submit" class="btn btn-sm">Filtrar</button>
       <a href="{% url 'prof_dashboard' %}" class="btn btn-outline btn-sm">Limpar</a>
     </div>
+    <fieldset class="quick-filter-chips" aria-label="Período rápido">
+      <legend>Período</legend>
+      <button type="submit" name="period" value="" class="filter-chip{% if not selected_period %} is-active{% endif %}">Todos</button>
+      <button type="submit" name="period" value="today" class="filter-chip{% if selected_period == 'today' %} is-active{% endif %}">Hoje</button>
+      <button type="submit" name="period" value="week" class="filter-chip{% if selected_period == 'week' %} is-active{% endif %}">Próx. 7 dias</button>
+      <button type="submit" name="period" value="month" class="filter-chip{% if selected_period == 'month' %} is-active{% endif %}">Próx. 30 dias</button>
+    </fieldset>
   </form>
 
   {% if treinos %}
@@ -127,7 +138,7 @@
   <div class="empty-state">
     <h2>Você ainda não possui treinos cadastrados.</h2>
     <p>Crie seu primeiro treino para montar a agenda dos alunos.</p>
-  <button type="button" class="btn" data-open-create>Cadastrar treino</button>
+    <button type="button" class="btn" data-open-create>Adicionar treino agora</button>
   </div>
   {% endif %}
 
