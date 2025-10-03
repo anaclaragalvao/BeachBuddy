@@ -123,7 +123,7 @@ runtime.txt (versão Python para plataformas compatíveis)
 - Filtrar localidade, dia e esporte.
 
 ## 11. Como Executar Localmente
-# Tem que comentar algumas coisas allowed_hosts e csrf_trusted_origins da producao e descomentar a do local.
+### Tem que comentar algumas linhas no settings.py allowed_hosts e csrf_trusted_origins da producao e descomentar a do local.
 1. Criar e ativar virtualenv (Windows PowerShell):
    ```powershell
    python -m venv .venv; .\.venv\Scripts\Activate.ps1
