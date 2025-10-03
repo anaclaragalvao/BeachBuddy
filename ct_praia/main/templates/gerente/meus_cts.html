@@ -57,15 +57,15 @@
             <div class="gerente-ct-card__professores">
                 <span class="label">Professores</span>
                 {% with professores=ct.professores.all %}
-                    {% if professores %}
-                    <ul>
-                        {% for professor in professores %}
-                        <li>{{ professor.get_full_name|default:professor.username }}</li>
-                        {% endfor %}
-                    </ul>
-                    {% else %}
-                    <p class="gerente-ct-card__empty">Nenhum professor associado ainda.</p>
-                    {% endif %}
+                {% if professores %}
+                <ul>
+                    {% for professor in professores %}
+                    <li>{{ professor.get_full_name|default:professor.username }}</li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="gerente-ct-card__empty">Nenhum professor associado ainda.</p>
+                {% endif %}
                 {% endwith %}
             </div>
         </div>
@@ -73,7 +73,8 @@
         <footer class="gerente-ct-card__footer">
             <div class="gerente-ct-card__primary">
                 <a href="{% url 'ct_detail' ct.pk %}" class="btn btn-sm">Ver página do CT</a>
-                <a href="{% url 'gerente_ct_professores' ct.pk %}" class="btn btn-sm btn-outline">Gerenciar professores</a>
+                <a href="{% url 'gerente_ct_professores' ct.pk %}" class="btn btn-sm btn-outline">Gerenciar
+                    professores</a>
             </div>
             <div class="gerente-ct-card__secondary">
                 <a href="{% url 'ct_update' ct.pk %}" class="link-inline">Editar dados</a>
