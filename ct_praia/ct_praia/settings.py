@@ -29,7 +29,7 @@ DEBUG = True
 # ALLOWED_HOSTS = ["localhost", "127.0.0.1", "0.0.0.0"]
 
 # (prod)
-ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", ".herokuapp.com,localhost,127.0.0.1").split(",") 
+ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", ".herokuapp.com,localhost,127.0.0.1").split(",")  
 
 
 # Para desenvolvimento local com HTTPS (p.ex., https://localhost:8000) e proxies
