@@ -40,12 +40,24 @@ class UsuarioSerializer(serializers.ModelSerializer):
 
 class UsuarioCompletoSerializer(serializers.ModelSerializer):
     """Serializer completo com dados do User e Usuario"""
-    usuario = UsuarioSerializer(source='*', read_only=True)
+    usuario = serializers.SerializerMethodField()
     
     class Meta:
         model = User
         fields = ['id', 'username', 'email', 'first_name', 'last_name', 'usuario']
         read_only_fields = ['id']
+    
+    def get_usuario(self, obj):
+        """Retorna os dados do perfil Usuario"""
+        try:
+            return {
+                'tipo': obj.usuario.tipo,
+                'telefone': obj.usuario.telefone,
+                'nivel': obj.usuario.nivel,
+                'certificacoes': obj.usuario.certificacoes,
+            }
+        except Usuario.DoesNotExist:
+            return None
 
 
 class UpdateProfileSerializer(serializers.Serializer):
