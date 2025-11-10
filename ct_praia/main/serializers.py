@@ -48,6 +48,23 @@ class UsuarioCompletoSerializer(serializers.ModelSerializer):
         read_only_fields = ['id']
 
 
+class UpdateProfileSerializer(serializers.Serializer):
+    """Serializer para atualização de perfil do usuário"""
+    # Campos do User que podem ser editados
+    first_name = serializers.CharField(max_length=150, required=False, allow_blank=True)
+    last_name = serializers.CharField(max_length=150, required=False, allow_blank=True)
+    
+    # Campos do Usuario que podem ser editados
+    telefone = serializers.CharField(max_length=20, required=False, allow_blank=True)
+    nivel = serializers.CharField(max_length=50, required=False, allow_blank=True)
+    certificacoes = serializers.CharField(required=False, allow_blank=True)
+    
+    # Campos somente leitura (não podem ser alterados)
+    username = serializers.CharField(read_only=True)
+    email = serializers.EmailField(read_only=True)
+    tipo = serializers.CharField(read_only=True)
+
+
 class SignupSerializer(serializers.ModelSerializer):
     """Serializer para cadastro de novos usuários"""
     email = serializers.EmailField(

@@ -16,6 +16,7 @@ from .serializers import (
     LoginSerializer,
     SignupSerializer,
     TreinoSerializer,
+    UpdateProfileSerializer,
     UsuarioCompletoSerializer,
     UsuarioSerializer,
 )
@@ -342,27 +343,48 @@ class UsuarioViewSet(viewsets.ReadOnlyModelViewSet):
         serializer = self.get_serializer(request.user)
         return Response(serializer.data)
     
-    @action(detail=False, methods=['put', 'patch'])
+    @swagger_auto_schema(
+        method='patch',
+        request_body=UpdateProfileSerializer,
+        responses={
+            200: UsuarioCompletoSerializer,
+            400: 'Dados inválidos'
+        }
+    )
+    @action(detail=False, methods=['patch'])
     def update_profile(self, request):
         """
-        Atualizar perfil do usuário autenticado
+        Atualizar perfil do usuário autenticado.
+        
+        Campos editáveis:
+        - first_name, last_name (do User)
+        - telefone, nivel, certificacoes (do Usuario)
+        
+        Campos NÃO editáveis (ignorados se enviados):
+        - username, email, tipo
         """
         user = request.user
         usuario = user.usuario
         
-        # Atualizar dados do User
-        user_fields = ['first_name', 'last_name', 'email']
+        # Validar dados com o serializer
+        serializer = UpdateProfileSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Atualizar apenas campos editáveis do User
+        user_fields = ['first_name', 'last_name']
         for field in user_fields:
-            if field in request.data:
-                setattr(user, field, request.data[field])
+            if field in serializer.validated_data:
+                setattr(user, field, serializer.validated_data[field])
         user.save()
         
-        # Atualizar dados do Usuario
+        # Atualizar apenas campos editáveis do Usuario
         usuario_fields = ['telefone', 'nivel', 'certificacoes']
         for field in usuario_fields:
-            if field in request.data:
-                setattr(usuario, field, request.data[field])
+            if field in serializer.validated_data:
+                setattr(usuario, field, serializer.validated_data[field])
         usuario.save()
         
-        serializer = self.get_serializer(user)
-        return Response(serializer.data)
+        # Retornar dados completos atualizados
+        response_serializer = UsuarioCompletoSerializer(user)
+        return Response(response_serializer.data)
