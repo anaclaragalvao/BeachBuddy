@@ -175,7 +175,7 @@ class TreinoSerializer(serializers.ModelSerializer):
             'modalidade', 'data', 'hora_inicio', 'hora_fim',
             'vagas', 'vagas_disponiveis', 'nivel', 'observacoes'
         ]
-        read_only_fields = ['id']
+        read_only_fields = ['id', 'professor']  # professor é setado automaticamente
     
     def get_vagas_disponiveis(self, obj):
         inscricoes_confirmadas = obj.inscricoes.filter(
@@ -191,13 +191,23 @@ class TreinoSerializer(serializers.ModelSerializer):
                     "hora_fim": "Hora fim deve ser após a hora início."
                 })
         
-        # Validar se professor está no CT
+        # Validar se professor está no CT (apenas quando professor é fornecido)
+        # Na criação via API, o professor é setado no perform_create, então não estará em attrs
         if 'ct' in attrs and 'professor' in attrs:
             ct = attrs['ct']
             professor = attrs['professor']
             if not ct.professores.filter(pk=professor.pk).exists():
                 raise serializers.ValidationError({
                     "professor": "Professor não está associado a este CT."
+                })
+        
+        # Se estamos criando (não tem professor em attrs), validar com request.user
+        request = self.context.get('request')
+        if request and 'ct' in attrs and 'professor' not in attrs:
+            ct = attrs['ct']
+            if not ct.professores.filter(pk=request.user.pk).exists():
+                raise serializers.ValidationError({
+                    "ct": "Você não está associado a este Centro de Treinamento."
                 })
         
         return attrs
