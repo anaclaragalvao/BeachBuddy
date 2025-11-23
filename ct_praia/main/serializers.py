@@ -227,7 +227,7 @@ class InscricaoSerializer(serializers.ModelSerializer):
             'id', 'treino', 'treino_detalhes', 'aluno', 'aluno_nome',
             'status', 'criado_em'
         ]
-        read_only_fields = ['id', 'criado_em']
+        read_only_fields = ['id', 'aluno', 'criado_em']
     
     def validate(self, attrs):
         # Verificar se ainda há vagas
