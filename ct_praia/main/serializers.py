@@ -178,10 +178,11 @@ class TreinoSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'professor']  # professor é setado automaticamente
     
     def get_vagas_disponiveis(self, obj):
-        inscricoes_confirmadas = obj.inscricoes.filter(
-            status=Inscricao.Status.CONFIRMADA
+        # Contar inscrições confirmadas e pendentes (excluir canceladas)
+        inscricoes_ativas = obj.inscricoes.filter(
+            status__in=[Inscricao.Status.CONFIRMADA, Inscricao.Status.PENDENTE]
         ).count()
-        return max(0, obj.vagas - inscricoes_confirmadas)
+        return max(0, obj.vagas - inscricoes_ativas)
     
     def validate(self, attrs):
         # Validar horários
@@ -230,13 +231,28 @@ class InscricaoSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'aluno', 'criado_em']
     
     def validate(self, attrs):
-        # Verificar se ainda há vagas
+        # Verificar se o aluno já está inscrito neste treino
         treino = attrs.get('treino')
+        request = self.context.get('request')
+        
+        if treino and request:
+            # Verificar se já existe uma inscrição
+            inscricao_existente = Inscricao.objects.filter(
+                treino=treino,
+                aluno=request.user
+            ).first()
+            
+            if inscricao_existente:
+                raise serializers.ValidationError({
+                    "treino": "Você já está inscrito neste treino."
+                })
+        
+        # Verificar se ainda há vagas (contar apenas confirmadas e pendentes)
         if treino:
-            inscricoes_confirmadas = treino.inscricoes.filter(
-                status=Inscricao.Status.CONFIRMADA
+            inscricoes_ativas = treino.inscricoes.filter(
+                status__in=[Inscricao.Status.CONFIRMADA, Inscricao.Status.PENDENTE]
             ).count()
-            if inscricoes_confirmadas >= treino.vagas:
+            if inscricoes_ativas >= treino.vagas:
                 raise serializers.ValidationError({
                     "treino": "Não há vagas disponíveis para este treino."
                 })

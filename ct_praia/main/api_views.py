@@ -304,13 +304,14 @@ class InscricaoViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'])
     def cancelar(self, request, pk=None):
         """
-        Cancelar inscrição
+        Cancelar inscrição (deleta do banco para permitir nova inscrição futura)
         """
         inscricao = self.get_object()
-        inscricao.status = Inscricao.Status.CANCELADA
-        inscricao.save()
-        serializer = self.get_serializer(inscricao)
-        return Response(serializer.data)
+        inscricao.delete()
+        return Response(
+            {'message': 'Inscrição cancelada com sucesso'},
+            status=status.HTTP_200_OK
+        )
 
 
 class UsuarioViewSet(viewsets.ReadOnlyModelViewSet):
