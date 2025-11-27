@@ -60,6 +60,22 @@ class CentroTreinamento(models.Model):
 		limit_choices_to={"usuario__tipo": Usuario.Tipo.PROFESSOR},
 		help_text="Professores autorizados a ministrar treinos neste CT",
 	)
+	
+	# Geolocalização para mapa
+	latitude = models.DecimalField(
+		max_digits=9,
+		decimal_places=6,
+		null=True,
+		blank=True,
+		help_text="Latitude da localização do CT (ex: -22.9068)"
+	)
+	longitude = models.DecimalField(
+		max_digits=9,
+		decimal_places=6,
+		null=True,
+		blank=True,
+		help_text="Longitude da localização do CT (ex: -43.1729)"
+	)
 
 	class Meta:
 		verbose_name = "Centro de Treinamento"

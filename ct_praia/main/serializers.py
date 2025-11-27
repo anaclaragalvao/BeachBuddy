@@ -151,7 +151,7 @@ class CentroTreinamentoSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'nome', 'endereco', 'contato', 'modalidades',
             'cnpj', 'gerente', 'gerente_nome', 'professores', 
-            'professores_nomes'
+            'professores_nomes', 'latitude', 'longitude'
         ]
         read_only_fields = ['id']
     
