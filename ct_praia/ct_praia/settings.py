@@ -29,7 +29,7 @@ DEBUG = True
 # ALLOWED_HOSTS = ["localhost", "127.0.0.1", "0.0.0.0"]
 
 # (prod)
-ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", ".herokuapp.com,localhost,127.0.0.1").split(",")  
+ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "beachbuddy.com.br,www.beachbuddy.com.br,localhost,127.0.0.1").split(",")  
 
 
 # CSRF Trusted Origins
@@ -227,6 +227,8 @@ SIMPLE_JWT = {
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:4200",
     "http://127.0.0.1:4200",
+    "https://beachbuddy.com.br",
+    "https://www.beachbuddy.com.br",
 ]
 
 # Para produção, adicione os domínios reais
