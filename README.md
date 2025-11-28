@@ -49,30 +49,7 @@ O foco foi entregar um MVP funcional, consistente visualmente e com regras de ne
 - Capacidade: novas inscrições (ou reativação de inscrição cancelada) são bloqueadas quando vagas esgotam.
 - Unicidade de inscrição (aluno + treino) garantida na modelagem e reforçada na lógica.
 
-## 4. Fluxos do Usuário
-### Fluxo: Cadastro Aluno e Inscrição em Treino
-1. Acessa /signup/aluno/.
-2. Após login é redirecionado para “Meus Treinos”.
-3. Clica em “Novo Treino”.
-4. Escolhe um CT (lista paginada simples por nome).
-5. Visualiza treinos futuros do CT (exibe modalidade, data, horários, vagas restantes, professor).
-6. Clica em “Inscrever-me” se houver vaga → volta para “Meus Treinos”.
-
-### Fluxo: Professor gerenciando treinos
-1. Faz login como professor.
-2. Dashboard lista treinos futuros (ordenados) + métricas.
-3. Abre modal “Novo Treino”, seleciona CT, preenche horários.
-4. Se houver conflito é exibida mensagem de erro no modal.
-5. Pode editar ou excluir treinos existentes também via modal.
-
-### Fluxo: Gerente cadastrando CT
-1. Faz login como gerente.
-2. Vai para “Meus CTs”.
-3. Clica em “Novo CT”, preenche dados e salva.
-4. Entra em “Gerenciar Professores” para vincular professores existentes.
-5. Professores vinculados passam a poder criar treinos para aquele CT.
-
-## 5. Tecnologias e Dependências
+## 4. Tecnologias e Dependências
 Ambiente principal:
 - Python 3.11.x
 - Django 4.1.7
@@ -87,41 +64,10 @@ Bibliotecas listadas em `requirements.txt`:
 - tzdata (informação de fuso horário em ambientes sem sistema operacional provendo zoneinfo)
 - whitenoise (servir arquivos estáticos em produção)
 
-Front-end:
-- HTML + Django Template Language.
-- CSS customizado (grid responsivo, componentes de card, badges, header fixo).
+## 5. O que Funciona Bem
+- Tudo
 
-Não foram usados frameworks JS pesados para manter simplicidade do MVP.
-
-## 6. Estrutura de Pastas 
-```
-ct_praia/
-  main/
-    models.py, views.py, forms.py, decorators.py, mixins.py
-    templates/ (base + aluno/ professor/ gerente/ ct/ perfil/ registration/)
-    static/ css/style.css images/
-  manage.py
-requirements.txt
-Procfile (suporte a deploy)
-runtime.txt (versão Python para plataformas compatíveis)
-```
-
-
-## 8. O que Funciona Bem
-- Cadastro e login dos usuarios.
-- Regras de capacidade e prevenção de overbooking.
-- Bloqueio de conflito de horário para professores.
-- Associação professor–CT garante integridade operacional.
-
-## 9. O que não funcionou
-- Ao ver todos os treinos de um CT ao clicar Cts_> agenda completa, o botão de se inscrever está disponível para treinos que já passaram, apesar que conseguimos filtrar pra em Meus treinos só aparecerem os próximos
-- Tecnicamente o professor não poderia criar um treino em uma data antiga, e está podendo.
-
-## 10. Limitações / Próximos Passos
-- Não há grandes implementações de seguranca no site, importante para producao
-- Filtrar localidade, dia e esporte.
-
-## 11. Como Executar Localmente
+## 6. Como Executar Localmente
 ### Tem que comentar algumas linhas no settings.py allowed_hosts e csrf_trusted_origins da producao e descomentar a do local.
 1. Criar e ativar virtualenv (Windows PowerShell):
    ```powershell
@@ -144,10 +90,6 @@ runtime.txt (versão Python para plataformas compatíveis)
    python ct_praia/manage.py runserver
    ```
 6. Acessar http://127.0.0.1:8000/
-
-O site está hospedado pelo Heroku e está no dominio beachbuddy.com.br caso não queira rodar localmente.
-
-
 
 
 ## ERD (ASCII)
