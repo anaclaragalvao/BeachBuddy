@@ -156,6 +156,50 @@ class CentroTreinamentoViewSet(viewsets.ModelViewSet):
         # Definir o usuário autenticado como gerente
         serializer.save(gerente=self.request.user)
     
+    @swagger_auto_schema(
+        method='get',
+        operation_description='Retorna apenas os Centros de Treinamento do gerente autenticado. Requer autenticação JWT via header Authorization: Bearer {token}',
+        responses={
+            200: CentroTreinamentoSerializer(many=True),
+            401: 'Token inválido ou ausente',
+            403: 'Usuário não é gerente'
+        },
+        security=[{'Bearer': []}]
+    )
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
+    def meus_cts(self, request):
+        """
+        Listar apenas os CTs do gerente autenticado
+        """
+        user = request.user
+        
+        # Debug logs
+        print(f"User: {user}, Authenticated: {user.is_authenticated}")
+        print(f"Has usuario: {hasattr(user, 'usuario')}")
+        
+        if hasattr(user, 'usuario'):
+            print(f"Tipo: {user.usuario.tipo}")
+        
+        # Verificar se o usuário tem perfil
+        if not hasattr(user, 'usuario'):
+            return Response(
+                {'detail': 'Usuário sem perfil associado'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Verificar se é gerente
+        if user.usuario.tipo != Usuario.Tipo.GERENTE:
+            return Response(
+                {'detail': 'Apenas gerentes podem acessar este endpoint'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Filtrar CTs do gerente
+        cts = CentroTreinamento.objects.filter(gerente=user)
+        print(f"CTs encontrados: {cts.count()}")
+        serializer = self.get_serializer(cts, many=True)
+        return Response(serializer.data)
+    
     @action(detail=True, methods=['get'])
     def treinos(self, request, pk=None):
         """
