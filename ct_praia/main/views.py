@@ -224,8 +224,10 @@ def prof_dashboard(request):
             return redirect("prof_dashboard")
 
     now = timezone.localtime()
+    window_end = now.date() + timedelta(days=30)
     upcoming_filter = Q(data__gt=now.date()) | (Q(data=now.date()) & Q(hora_fim__gte=now.time()))
     base_upcoming_qs = base_qs.filter(upcoming_filter)
+    base_upcoming_qs = base_upcoming_qs.filter(data__lte=window_end)
     qs = base_upcoming_qs.order_by("data", "hora_inicio")
 
     selected_date = request.GET.get("data", "")
@@ -249,7 +251,7 @@ def prof_dashboard(request):
         elif selected_period == "week":
             qs = qs.filter(data__range=(now.date(), now.date() + timedelta(days=7)))
         elif selected_period == "month":
-            qs = qs.filter(data__range=(now.date(), now.date() + timedelta(days=30)))
+            qs = qs.filter(data__range=(now.date(), window_end))
         selected_date = ""
     elif selected_date:
         qs = qs.filter(data=selected_date)
@@ -300,6 +302,7 @@ def prof_dashboard(request):
 def meus_treinos(request):
     """Lista inscrições futuras do aluno (exclui canceladas) ordenadas cronologicamente."""
     now = timezone.localtime()
+    window_end = now.date() + timedelta(days=30)
     upcoming_filter = Q(treino__data__gt=now.date()) | (
         Q(treino__data=now.date()) & Q(treino__hora_fim__gte=now.time())
     )
@@ -309,6 +312,7 @@ def meus_treinos(request):
         .filter(aluno=request.user)
         .exclude(status=Inscricao.Status.CANCELADA)
         .filter(upcoming_filter)
+        .filter(treino__data__lte=window_end)
         .order_by("treino__data", "treino__hora_inicio")
     )
     return render(request, "aluno/meus_treinos.html", {"inscricoes": inscricoes})
@@ -368,8 +372,9 @@ def novo_treino_escolher_treino(request, ct_id: int):
     """Passo 2: lista treinos futuros do CT com contagem de confirmadas e marca os já inscritos."""
     ct = get_object_or_404(CentroTreinamento, pk=ct_id)
     today = timezone.localdate()
+    window_end = today + timedelta(days=30)
     treinos = (
-        Treino.objects.filter(ct=ct, data__gte=today)
+        Treino.objects.filter(ct=ct, data__gte=today, data__lte=window_end)
         .select_related("ct", "professor")
         .annotate(confirmadas=Count("inscricoes", filter=Q(inscricoes__status=Inscricao.Status.CONFIRMADA)))
         .order_by("data", "hora_inicio")
@@ -440,6 +445,7 @@ class CTDetailView(DetailView):
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         today = timezone.localdate()
+        window_end = today + timedelta(days=30)
         mostrar_todos = self.request.GET.get("all") == "1"
         base_qs = (
             self.object.treinos
@@ -447,7 +453,7 @@ class CTDetailView(DetailView):
             .annotate(confirmadas=Count("inscricoes", filter=Q(inscricoes__status=Inscricao.Status.CONFIRMADA)))
         )
 
-        futuros_qs = base_qs.filter(data__gte=today)
+        futuros_qs = base_qs.filter(data__gte=today, data__lte=window_end)
         proximos_count = futuros_qs.count()
         proximos_proximo = futuros_qs.order_by("data", "hora_inicio").first()
         passados_count = base_qs.filter(data__lt=today).count()

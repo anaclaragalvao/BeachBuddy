@@ -2,7 +2,14 @@ from django.contrib import admin
 from django.contrib.auth import get_user_model
 from django.contrib.auth.admin import UserAdmin
 
-from .models import Usuario, CentroTreinamento, Treino, Inscricao
+from .models import (
+	AgendamentoTreino,
+	CentroTreinamento,
+	HorarioRecorrente,
+	Inscricao,
+	Treino,
+	Usuario,
+)
 
 
 @admin.register(Usuario)
@@ -31,9 +38,24 @@ class TreinoAdmin(admin.ModelAdmin):
 		"hora_fim",
 		"vagas",
 		"nivel",
+		"agendado",
 	)
-	list_filter = ("ct", "modalidade", "data")
+	list_filter = ("ct", "modalidade", "data", "agendado")
 	search_fields = ("modalidade", "ct__nome", "professor__username")
+	autocomplete_fields = ("ct", "professor")
+
+
+class HorarioRecorrenteInline(admin.TabularInline):
+	model = HorarioRecorrente
+	extra = 0
+
+
+@admin.register(AgendamentoTreino)
+class AgendamentoTreinoAdmin(admin.ModelAdmin):
+	list_display = ("ct", "professor", "modalidade", "vagas", "nivel", "criado_em")
+	search_fields = ("modalidade", "ct__nome", "professor__username")
+	list_filter = ("ct", "professor")
+	inlines = [HorarioRecorrenteInline]
 	autocomplete_fields = ("ct", "professor")
 
 

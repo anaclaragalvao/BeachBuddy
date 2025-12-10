@@ -3,7 +3,14 @@ from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
 from rest_framework.validators import UniqueValidator
 
-from .models import CentroTreinamento, Inscricao, Treino, Usuario
+from .models import (
+    AgendamentoTreino,
+    CentroTreinamento,
+    HorarioRecorrente,
+    Inscricao,
+    Treino,
+    Usuario,
+)
 
 User = get_user_model()
 
@@ -173,9 +180,10 @@ class TreinoSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'ct', 'ct_nome', 'professor', 'professor_nome',
             'modalidade', 'data', 'hora_inicio', 'hora_fim',
-            'vagas', 'vagas_disponiveis', 'nivel', 'observacoes'
+            'vagas', 'vagas_disponiveis', 'nivel', 'observacoes',
+            'agendado', 'agendamento'
         ]
-        read_only_fields = ['id', 'professor']  # professor é setado automaticamente
+        read_only_fields = ['id', 'professor', 'agendado', 'agendamento']
     
     def get_vagas_disponiveis(self, obj):
         # Contar inscrições confirmadas e pendentes (excluir canceladas)
@@ -212,6 +220,78 @@ class TreinoSerializer(serializers.ModelSerializer):
                 })
         
         return attrs
+
+
+class HorarioRecorrenteSerializer(serializers.ModelSerializer):
+    dia_semana_label = serializers.CharField(source='get_dia_semana_display', read_only=True)
+
+    class Meta:
+        model = HorarioRecorrente
+        fields = ['id', 'dia_semana', 'dia_semana_label', 'hora_inicio', 'hora_fim']
+        read_only_fields = ['id', 'dia_semana_label']
+
+    def validate(self, attrs):
+        if attrs['hora_fim'] <= attrs['hora_inicio']:
+            raise serializers.ValidationError({'hora_fim': 'Hora fim deve ser após a hora início.'})
+        return attrs
+
+
+class AgendamentoTreinoSerializer(serializers.ModelSerializer):
+    horarios = HorarioRecorrenteSerializer(many=True)
+    ct_nome = serializers.CharField(source='ct.nome', read_only=True)
+    professor_nome = serializers.CharField(source='professor.get_full_name', read_only=True)
+
+    class Meta:
+        model = AgendamentoTreino
+        fields = [
+            'id', 'ct', 'ct_nome', 'professor', 'professor_nome',
+            'modalidade', 'vagas', 'nivel', 'observacoes',
+            'horarios', 'criado_em', 'atualizado_em'
+        ]
+        read_only_fields = ['id', 'professor', 'professor_nome', 'criado_em', 'atualizado_em']
+
+    def validate_horarios(self, value):
+        if not value:
+            raise serializers.ValidationError('Informe ao menos um dia/horário para o agendamento.')
+        return value
+
+    def validate(self, attrs):
+        horarios = self.initial_data.get('horarios')
+        if not horarios:
+            raise serializers.ValidationError({'horarios': 'Informe ao menos um dia/horário.'})
+        request = self.context.get('request')
+        ct = attrs.get('ct') or getattr(self.instance, 'ct', None)
+        if request and ct and not request.user.is_superuser:
+            if not hasattr(request.user, 'usuario') or request.user.usuario.tipo != Usuario.Tipo.PROFESSOR:
+                raise serializers.ValidationError({'ct': 'Somente professores podem criar agendamentos.'})
+            if not ct.professores.filter(pk=request.user.pk).exists():
+                raise serializers.ValidationError({'ct': 'Você não está associado a este CT.'})
+        return super().validate(attrs)
+
+    def create(self, validated_data):
+        horarios_data = validated_data.pop('horarios', [])
+        agendamento = AgendamentoTreino.objects.create(**validated_data)
+        self._recreate_horarios(agendamento, horarios_data)
+        return agendamento
+
+    def update(self, instance, validated_data):
+        horarios_data = validated_data.pop('horarios', None)
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+        if horarios_data is not None:
+            instance.horarios.all().delete()
+            self._recreate_horarios(instance, horarios_data)
+        return instance
+
+    def _recreate_horarios(self, agendamento, horarios_data):
+        for horario in horarios_data:
+            HorarioRecorrente.objects.create(
+                agendamento=agendamento,
+                dia_semana=horario['dia_semana'],
+                hora_inicio=horario['hora_inicio'],
+                hora_fim=horario['hora_fim'],
+            )
 
 
 class InscricaoSerializer(serializers.ModelSerializer):

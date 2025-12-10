@@ -3,14 +3,16 @@ from django.db.models import Count, Q
 from django.utils import timezone
 from rest_framework import status, viewsets
 from rest_framework.decorators import action, api_view, permission_classes
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
-from .models import CentroTreinamento, Inscricao, Treino, Usuario
+from .models import AgendamentoTreino, CentroTreinamento, Inscricao, Treino, Usuario
 from .serializers import (
+    AgendamentoTreinoSerializer,
     CentroTreinamentoSerializer,
     InscricaoSerializer,
     LoginSerializer,
@@ -20,6 +22,7 @@ from .serializers import (
     UsuarioCompletoSerializer,
     UsuarioSerializer,
 )
+from .services import regenerate_agendamento_ocorrencias
 
 User = get_user_model()
 
@@ -148,7 +151,7 @@ class CentroTreinamentoViewSet(viewsets.ModelViewSet):
     serializer_class = CentroTreinamentoSerializer
     
     def get_permissions(self):
-        if self.action in ['list', 'retrieve']:
+        if self.action in ['list', 'retrieve', 'treinos']:
             return [AllowAny()]
         return [IsAuthenticated()]
     
@@ -255,6 +258,54 @@ class CentroTreinamentoViewSet(viewsets.ModelViewSet):
             )
 
 
+class AgendamentoTreinoViewSet(viewsets.ModelViewSet):
+    """ViewSet responsável pelo CRUD dos agendamentos de treinos recorrentes."""
+
+    queryset = (
+        AgendamentoTreino.objects
+        .select_related('ct', 'professor')
+        .prefetch_related('horarios')
+    )
+    serializer_class = AgendamentoTreinoSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        user = self.request.user
+        if user.is_superuser:
+            return qs
+        return qs.filter(professor=user)
+
+    def perform_create(self, serializer):
+        self._ensure_professor(self.request.user)
+        instance = serializer.save(professor=self.request.user)
+        regenerate_agendamento_ocorrencias(instance)
+
+    def perform_update(self, serializer):
+        instance = self.get_object()
+        self._ensure_can_mutate(instance, self.request.user)
+        instance = serializer.save()
+        regenerate_agendamento_ocorrencias(instance)
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        self._ensure_can_mutate(instance, request.user)
+        return super().destroy(request, *args, **kwargs)
+
+    def _ensure_professor(self, user):
+        if user.is_superuser:
+            return
+        if not hasattr(user, 'usuario') or user.usuario.tipo != Usuario.Tipo.PROFESSOR:
+            raise PermissionDenied('Somente professores podem gerenciar agendamentos.')
+
+    def _ensure_can_mutate(self, instance, user):
+        if user.is_superuser:
+            return
+        if instance.professor_id != user.id:
+            raise PermissionDenied('Você não pode alterar este agendamento.')
+        self._ensure_professor(user)
+
+
 class TreinoViewSet(viewsets.ModelViewSet):
     """
     ViewSet para gerenciar Treinos
@@ -288,6 +339,25 @@ class TreinoViewSet(viewsets.ModelViewSet):
     
     def perform_create(self, serializer):
         serializer.save(professor=self.request.user)
+
+    def update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        self._ensure_manual(instance)
+        return super().update(request, *args, **kwargs)
+
+    def partial_update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        self._ensure_manual(instance)
+        return super().partial_update(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        self._ensure_manual(instance)
+        return super().destroy(request, *args, **kwargs)
+
+    def _ensure_manual(self, instance: Treino):
+        if instance.agendado:
+            raise ValidationError('Treinos oriundos de agendamento devem ser alterados no próprio agendamento.')
     
     @action(detail=True, methods=['get'])
     def inscricoes(self, request, pk=None):

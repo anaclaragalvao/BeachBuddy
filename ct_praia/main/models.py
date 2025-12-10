@@ -86,6 +86,7 @@ class CentroTreinamento(models.Model):
 		return self.nome
 
 
+
 class Treino(models.Model):
 	ct = models.ForeignKey(
 		CentroTreinamento,
@@ -105,6 +106,14 @@ class Treino(models.Model):
 	vagas = models.PositiveIntegerField()
 	nivel = models.CharField(max_length=50)
 	observacoes = models.TextField(blank=True)
+	agendado = models.BooleanField(default=False, help_text="Identifica treinos gerados a partir de um agendamento.")
+	agendamento = models.ForeignKey(
+		"AgendamentoTreino",
+		on_delete=models.CASCADE,
+		related_name="ocorrencias",
+		null=True,
+		blank=True,
+	)
 
 	class Meta:
 		ordering = ["-data", "hora_inicio"]
@@ -128,6 +137,69 @@ class Treino(models.Model):
 
 	def __str__(self) -> str:  # pragma: no cover
 		return f"{self.modalidade} - {self.data} ({self.ct})"
+
+
+class AgendamentoTreino(models.Model):
+	class DiaSemana(models.IntegerChoices):
+		SEGUNDA = 0, "Segunda"
+		TERCA = 1, "Terça"
+		QUARTA = 2, "Quarta"
+		QUINTA = 3, "Quinta"
+		SEXTA = 4, "Sexta"
+		SABADO = 5, "Sábado"
+		DOMINGO = 6, "Domingo"
+
+	ct = models.ForeignKey(
+		CentroTreinamento,
+		on_delete=models.CASCADE,
+		related_name="agendamentos",
+	)
+	professor = models.ForeignKey(
+		settings.AUTH_USER_MODEL,
+		on_delete=models.CASCADE,
+		related_name="agendamentos_treino",
+		limit_choices_to={"usuario__tipo": Usuario.Tipo.PROFESSOR},
+	)
+	modalidade = models.CharField(max_length=100)
+	vagas = models.PositiveIntegerField()
+	nivel = models.CharField(max_length=50)
+	observacoes = models.TextField(blank=True)
+	criado_em = models.DateTimeField(auto_now_add=True)
+	atualizado_em = models.DateTimeField(auto_now=True)
+
+	class Meta:
+		ordering = ["-criado_em"]
+
+	def clean(self):
+		# Garantir que o professor esteja associado ao CT
+		if self.ct_id and self.professor_id:
+			if not self.ct.professores.filter(pk=self.professor_id).exists():
+				raise ValidationError({"professor": "Professor não está associado a este CT."})
+
+	def __str__(self) -> str:  # pragma: no cover
+		return f"Agendamento {self.modalidade} - {self.ct.nome}"
+
+
+class HorarioRecorrente(models.Model):
+	agendamento = models.ForeignKey(
+		AgendamentoTreino,
+		on_delete=models.CASCADE,
+		related_name="horarios",
+	)
+	dia_semana = models.IntegerField(choices=AgendamentoTreino.DiaSemana.choices)
+	hora_inicio = models.TimeField()
+	hora_fim = models.TimeField()
+
+	class Meta:
+		ordering = ["dia_semana", "hora_inicio"]
+		unique_together = ("agendamento", "dia_semana", "hora_inicio", "hora_fim")
+
+	def clean(self):
+		if self.hora_fim <= self.hora_inicio:
+			raise ValidationError({"hora_fim": "Hora fim deve ser após a hora início."})
+
+	def __str__(self) -> str:  # pragma: no cover
+		return f"{self.get_dia_semana_display()} {self.hora_inicio}-{self.hora_fim}"
 
 
 class Inscricao(models.Model):
