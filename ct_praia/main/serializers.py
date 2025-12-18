@@ -7,6 +7,7 @@ from .models import (
     AgendamentoTreino,
     CentroTreinamento,
     HorarioRecorrente,
+    ProfessorCentroTreinamento,
     Inscricao,
     Treino,
     Usuario,
@@ -166,6 +167,21 @@ class CentroTreinamentoSerializer(serializers.ModelSerializer):
         return [p.get_full_name() or p.username for p in obj.professores.all()]
 
 
+class ProfessorCentroTreinamentoSerializer(serializers.ModelSerializer):
+    """Serializer para permissões de professor em um CT."""
+
+    professor_nome = serializers.CharField(source='professor.get_full_name', read_only=True)
+
+    class Meta:
+        model = ProfessorCentroTreinamento
+        fields = [
+            'id', 'ct', 'professor', 'professor_nome',
+            'pode_criar_treino', 'pode_cancelar_treino',
+            'criado_em', 'atualizado_em',
+        ]
+        read_only_fields = ['id', 'criado_em', 'atualizado_em']
+
+
 class TreinoSerializer(serializers.ModelSerializer):
     """Serializer para Treino"""
     ct_nome = serializers.CharField(source='ct.nome', read_only=True)
@@ -183,7 +199,7 @@ class TreinoSerializer(serializers.ModelSerializer):
             'vagas', 'vagas_disponiveis', 'nivel', 'observacoes',
             'agendado', 'agendamento'
         ]
-        read_only_fields = ['id', 'professor', 'agendado', 'agendamento']
+        read_only_fields = ['id', 'agendado', 'agendamento']
     
     def get_vagas_disponiveis(self, obj):
         # Contar inscrições confirmadas e pendentes (excluir canceladas)
@@ -200,24 +216,32 @@ class TreinoSerializer(serializers.ModelSerializer):
                     "hora_fim": "Hora fim deve ser após a hora início."
                 })
         
-        # Validar se professor está no CT (apenas quando professor é fornecido)
-        # Na criação via API, o professor é setado no perform_create, então não estará em attrs
-        if 'ct' in attrs and 'professor' in attrs:
-            ct = attrs['ct']
-            professor = attrs['professor']
-            if not ct.professores.filter(pk=professor.pk).exists():
-                raise serializers.ValidationError({
-                    "professor": "Professor não está associado a este CT."
-                })
-        
-        # Se estamos criando (não tem professor em attrs), validar com request.user
+        ct = attrs.get('ct') or getattr(self.instance, 'ct', None)
+        professor = attrs.get('professor') or getattr(self.instance, 'professor', None)
+
+        # Professor deve pertencer ao CT
+        if ct and professor and not ct.professores.filter(pk=professor.pk).exists():
+            raise serializers.ValidationError({
+                "professor": "Professor não está associado a este CT."
+            })
+
         request = self.context.get('request')
-        if request and 'ct' in attrs and 'professor' not in attrs:
-            ct = attrs['ct']
-            if not ct.professores.filter(pk=request.user.pk).exists():
-                raise serializers.ValidationError({
-                    "ct": "Você não está associado a este Centro de Treinamento."
-                })
+        if request and ct:
+            user = request.user
+            if not user.is_superuser:
+                if not hasattr(user, 'usuario'):
+                    raise serializers.ValidationError({"ct": "Usuário sem perfil associado."})
+                if user.usuario.tipo == Usuario.Tipo.GERENTE:
+                    if ct.gerente_id != user.id:
+                        raise serializers.ValidationError({"ct": "Apenas o gerente do CT pode criar ou editar treinos aqui."})
+                elif user.usuario.tipo == Usuario.Tipo.PROFESSOR:
+                    # Professores só manipulam treinos nos quais são o professor
+                    if professor and professor.id != user.id:
+                        raise serializers.ValidationError({"professor": "Professores só podem manipular seus próprios treinos."})
+                    if not ct.professores.filter(pk=user.pk).exists():
+                        raise serializers.ValidationError({"ct": "Você não está associado a este Centro de Treinamento."})
+                else:
+                    raise serializers.ValidationError({"ct": "Somente gerente ou professor podem manipular treinos."})
         
         return attrs
 
@@ -248,7 +272,7 @@ class AgendamentoTreinoSerializer(serializers.ModelSerializer):
             'modalidade', 'vagas', 'nivel', 'observacoes',
             'horarios', 'criado_em', 'atualizado_em'
         ]
-        read_only_fields = ['id', 'professor', 'professor_nome', 'criado_em', 'atualizado_em']
+        read_only_fields = ['id', 'professor_nome', 'criado_em', 'atualizado_em']
 
     def validate_horarios(self, value):
         if not value:
@@ -261,11 +285,27 @@ class AgendamentoTreinoSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({'horarios': 'Informe ao menos um dia/horário.'})
         request = self.context.get('request')
         ct = attrs.get('ct') or getattr(self.instance, 'ct', None)
+        professor = attrs.get('professor') or getattr(self.instance, 'professor', None)
+
         if request and ct and not request.user.is_superuser:
-            if not hasattr(request.user, 'usuario') or request.user.usuario.tipo != Usuario.Tipo.PROFESSOR:
-                raise serializers.ValidationError({'ct': 'Somente professores podem criar agendamentos.'})
-            if not ct.professores.filter(pk=request.user.pk).exists():
-                raise serializers.ValidationError({'ct': 'Você não está associado a este CT.'})
+            user = request.user
+            if not hasattr(user, 'usuario'):
+                raise serializers.ValidationError({'ct': 'Usuário sem perfil associado.'})
+
+            if user.usuario.tipo == Usuario.Tipo.GERENTE:
+                if ct.gerente_id != user.id:
+                    raise serializers.ValidationError({'ct': 'Apenas o gerente do CT pode gerenciar agendamentos deste CT.'})
+            elif user.usuario.tipo == Usuario.Tipo.PROFESSOR:
+                if professor and professor.id != user.id:
+                    raise serializers.ValidationError({'professor': 'Professores só podem criar/editar agendamentos em que são responsáveis.'})
+                if not ct.professores.filter(pk=user.pk).exists():
+                    raise serializers.ValidationError({'ct': 'Você não está associado a este CT.'})
+            else:
+                raise serializers.ValidationError({'ct': 'Somente gerente ou professor podem gerenciar agendamentos.'})
+
+        if ct and professor and not ct.professores.filter(pk=professor.pk).exists():
+            raise serializers.ValidationError({'professor': 'Professor não está associado a este CT.'})
+
         return super().validate(attrs)
 
     def create(self, validated_data):

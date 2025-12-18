@@ -58,6 +58,8 @@ class CentroTreinamento(models.Model):
 		blank=True,
 		related_name="cts_associados",
 		limit_choices_to={"usuario__tipo": Usuario.Tipo.PROFESSOR},
+		through="ProfessorCentroTreinamento",
+		through_fields=("ct", "professor"),
 		help_text="Professores autorizados a ministrar treinos neste CT",
 	)
 	
@@ -85,6 +87,38 @@ class CentroTreinamento(models.Model):
 	def __str__(self) -> str:  # pragma: no cover
 		return self.nome
 
+	def get_vinculo_professor(self, professor_id):
+		"""Retorna o vínculo (se existir) do professor neste CT."""
+		return self.professores_vinculos.filter(professor_id=professor_id).first()
+
+
+
+class ProfessorCentroTreinamento(models.Model):
+	"""Vínculo de professor a um CT com permissões opcionais."""
+
+	ct = models.ForeignKey(
+		CentroTreinamento,
+		on_delete=models.CASCADE,
+		related_name="professores_vinculos",
+	)
+	professor = models.ForeignKey(
+		settings.AUTH_USER_MODEL,
+		on_delete=models.CASCADE,
+		related_name="vinculos_ct",
+		limit_choices_to={"usuario__tipo": Usuario.Tipo.PROFESSOR},
+	)
+	pode_criar_treino = models.BooleanField(default=False)
+	pode_cancelar_treino = models.BooleanField(default=False)
+	criado_em = models.DateTimeField(auto_now_add=True)
+	atualizado_em = models.DateTimeField(auto_now=True)
+
+	class Meta:
+		unique_together = ("ct", "professor")
+		verbose_name = "Professor no CT"
+		verbose_name_plural = "Professores no CT"
+
+	def __str__(self) -> str:  # pragma: no cover - representação simples
+		return f"{self.professor} em {self.ct}"
 
 
 class Treino(models.Model):

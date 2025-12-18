@@ -11,6 +11,7 @@ router.register(r'treinos', api_views.TreinoViewSet, basename='treino')
 router.register(r'inscricoes', api_views.InscricaoViewSet, basename='inscricao')
 router.register(r'usuarios', api_views.UsuarioViewSet, basename='usuario')
 router.register(r'agendamentos', api_views.AgendamentoTreinoViewSet, basename='agendamento')
+router.register(r'professores-ct', api_views.ProfessorCentroTreinamentoViewSet, basename='professor_ct')
 
 urlpatterns = [
 

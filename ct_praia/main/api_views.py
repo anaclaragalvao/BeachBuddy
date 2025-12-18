@@ -1,7 +1,7 @@
 from django.contrib.auth import get_user_model
 from django.db.models import Count, Q
 from django.utils import timezone
-from rest_framework import status, viewsets
+from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -10,10 +10,11 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
-from .models import AgendamentoTreino, CentroTreinamento, Inscricao, Treino, Usuario
+from .models import AgendamentoTreino, CentroTreinamento, Inscricao, ProfessorCentroTreinamento, Treino, Usuario
 from .serializers import (
     AgendamentoTreinoSerializer,
     CentroTreinamentoSerializer,
+    ProfessorCentroTreinamentoSerializer,
     InscricaoSerializer,
     LoginSerializer,
     SignupSerializer,
@@ -25,6 +26,21 @@ from .serializers import (
 from .services import regenerate_agendamento_ocorrencias
 
 User = get_user_model()
+
+
+def _is_gerente_do_ct(user, ct: CentroTreinamento) -> bool:
+    return bool(user.is_superuser or (hasattr(user, "usuario") and user.usuario.tipo == Usuario.Tipo.GERENTE and ct.gerente_id == user.id))
+
+
+def _professor_vinculo(ct: CentroTreinamento, professor_id: int | None):
+    if not professor_id:
+        return None
+    return ct.get_vinculo_professor(professor_id)
+
+
+def _require_professor_associado(ct: CentroTreinamento, professor_id: int):
+    if not _professor_vinculo(ct, professor_id):
+        raise PermissionDenied("Professor não está associado a este CT.")
 
 
 @swagger_auto_schema(
@@ -154,10 +170,29 @@ class CentroTreinamentoViewSet(viewsets.ModelViewSet):
         if self.action in ['list', 'retrieve', 'treinos']:
             return [AllowAny()]
         return [IsAuthenticated()]
+
+    def get_queryset(self):
+        """Para ações de escrita, limita aos CTs do gerente autenticado."""
+        qs = super().get_queryset()
+        user = self.request.user
+
+        # Leitura é pública (inclui ct/{id}/treinos)
+        if self.action in ['list', 'retrieve', 'treinos']:
+            return qs
+
+        if user.is_superuser:
+            return qs
+
+        # Para create/update/destroy/add_professor etc: somente gerente do CT
+        if not hasattr(user, 'usuario') or user.usuario.tipo != Usuario.Tipo.GERENTE:
+            return qs.none()
+        return qs.filter(gerente=user)
     
     def perform_create(self, serializer):
-        # Definir o usuário autenticado como gerente
-        serializer.save(gerente=self.request.user)
+        user = self.request.user
+        if not user.is_superuser and (not hasattr(user, 'usuario') or user.usuario.tipo != Usuario.Tipo.GERENTE):
+            raise PermissionDenied('Apenas gerentes podem criar Centros de Treinamento.')
+        serializer.save(gerente=user)
     
     @swagger_auto_schema(
         method='get',
@@ -209,7 +244,8 @@ class CentroTreinamentoViewSet(viewsets.ModelViewSet):
         Listar todos os treinos de um CT específico
         """
         ct = self.get_object()
-        treinos = ct.treinos.all()
+        hoje = timezone.localdate()
+        treinos = ct.treinos.filter(data__gte=hoje)
         serializer = TreinoSerializer(treinos, many=True)
         return Response(serializer.data)
     
@@ -219,17 +255,20 @@ class CentroTreinamentoViewSet(viewsets.ModelViewSet):
         Adicionar professor ao CT
         """
         ct = self.get_object()
+        if not _is_gerente_do_ct(request.user, ct):
+            raise PermissionDenied('Apenas o gerente do CT pode adicionar professores.')
         professor_id = request.data.get('professor_id')
         
         try:
             user = User.objects.get(pk=professor_id)
-            if user.usuario.tipo != Usuario.Tipo.PROFESSOR:
+            if not hasattr(user, 'usuario') or user.usuario.tipo != Usuario.Tipo.PROFESSOR:
                 return Response(
                     {'error': 'Usuário não é um professor'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
             
-            ct.professores.add(user)
+            # Through model created with default flags (False)
+            ProfessorCentroTreinamento.objects.get_or_create(ct=ct, professor=user)
             return Response({'message': 'Professor adicionado com sucesso'})
         
         except User.DoesNotExist:
@@ -237,6 +276,48 @@ class CentroTreinamentoViewSet(viewsets.ModelViewSet):
                 {'error': 'Usuário não encontrado'},
                 status=status.HTTP_404_NOT_FOUND
             )
+
+
+class ProfessorCentroTreinamentoViewSet(
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    mixins.UpdateModelMixin,
+    viewsets.GenericViewSet,
+):
+    """Gerencia flags de permissão por professor em um CT.
+
+    - Gerente: pode listar/editar vínculos dos seus CTs
+    - Professor: pode apenas listar/consultar seus próprios vínculos
+    """
+
+    queryset = ProfessorCentroTreinamento.objects.select_related('ct', 'professor')
+    serializer_class = ProfessorCentroTreinamentoSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        user = self.request.user
+        if user.is_superuser:
+            return qs
+        if not hasattr(user, 'usuario'):
+            return qs.none()
+        if user.usuario.tipo == Usuario.Tipo.GERENTE:
+            return qs.filter(ct__gerente=user)
+        if user.usuario.tipo == Usuario.Tipo.PROFESSOR:
+            return qs.filter(professor=user)
+        return qs.none()
+
+    def update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if not _is_gerente_do_ct(request.user, instance.ct):
+            raise PermissionDenied('Apenas o gerente do CT pode alterar permissões de professores.')
+        return super().update(request, *args, **kwargs)
+
+    def partial_update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if not _is_gerente_do_ct(request.user, instance.ct):
+            raise PermissionDenied('Apenas o gerente do CT pode alterar permissões de professores.')
+        return super().partial_update(request, *args, **kwargs)
     
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
     def remove_professor(self, request, pk=None):
@@ -244,11 +325,13 @@ class CentroTreinamentoViewSet(viewsets.ModelViewSet):
         Remover professor do CT
         """
         ct = self.get_object()
+        if not _is_gerente_do_ct(request.user, ct):
+            raise PermissionDenied('Apenas o gerente do CT pode remover professores.')
         professor_id = request.data.get('professor_id')
         
         try:
             user = User.objects.get(pk=professor_id)
-            ct.professores.remove(user)
+            ProfessorCentroTreinamento.objects.filter(ct=ct, professor=user).delete()
             return Response({'message': 'Professor removido com sucesso'})
         
         except User.DoesNotExist:
@@ -274,36 +357,83 @@ class AgendamentoTreinoViewSet(viewsets.ModelViewSet):
         user = self.request.user
         if user.is_superuser:
             return qs
-        return qs.filter(professor=user)
+        if not hasattr(user, 'usuario'):
+            return qs.none()
+        if user.usuario.tipo == Usuario.Tipo.GERENTE:
+            return qs.filter(ct__gerente=user)
+        if user.usuario.tipo == Usuario.Tipo.PROFESSOR:
+            return qs.filter(professor=user)
+        return qs.none()
 
     def perform_create(self, serializer):
-        self._ensure_professor(self.request.user)
-        instance = serializer.save(professor=self.request.user)
+        user = self.request.user
+        if user.is_superuser:
+            instance = serializer.save()
+            regenerate_agendamento_ocorrencias(instance)
+            return
+
+        if not hasattr(user, 'usuario'):
+            raise PermissionDenied('Usuário sem perfil associado.')
+
+        ct = serializer.validated_data.get('ct')
+        professor = serializer.validated_data.get('professor')
+
+        if user.usuario.tipo == Usuario.Tipo.GERENTE:
+            if not ct or ct.gerente_id != user.id:
+                raise PermissionDenied('Apenas o gerente do CT pode criar agendamentos.')
+            if not professor:
+                raise ValidationError({'professor': 'Informe o professor responsável pelo agendamento.'})
+            _require_professor_associado(ct, professor.id)
+            instance = serializer.save()
+        elif user.usuario.tipo == Usuario.Tipo.PROFESSOR:
+            vinculo = _professor_vinculo(ct, user.id)
+            if not vinculo:
+                raise PermissionDenied('Você não está associado a este CT.')
+            if not vinculo.pode_criar_treino:
+                raise PermissionDenied('Você não tem permissão para criar agendamentos neste CT.')
+            instance = serializer.save(professor=user)
+        else:
+            raise PermissionDenied('Somente gerente ou professor podem criar agendamentos.')
+
         regenerate_agendamento_ocorrencias(instance)
 
     def perform_update(self, serializer):
         instance = self.get_object()
-        self._ensure_can_mutate(instance, self.request.user)
+        self._ensure_can_mutate(instance, self.request.user, action='update')
         instance = serializer.save()
         regenerate_agendamento_ocorrencias(instance)
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
-        self._ensure_can_mutate(instance, request.user)
+        self._ensure_can_mutate(instance, request.user, action='destroy')
         return super().destroy(request, *args, **kwargs)
 
-    def _ensure_professor(self, user):
+    def _ensure_can_mutate(self, instance, user, action: str):
         if user.is_superuser:
             return
-        if not hasattr(user, 'usuario') or user.usuario.tipo != Usuario.Tipo.PROFESSOR:
-            raise PermissionDenied('Somente professores podem gerenciar agendamentos.')
+        if not hasattr(user, 'usuario'):
+            raise PermissionDenied('Usuário sem perfil associado.')
 
-    def _ensure_can_mutate(self, instance, user):
-        if user.is_superuser:
+        if user.usuario.tipo == Usuario.Tipo.GERENTE:
+            if instance.ct.gerente_id != user.id:
+                raise PermissionDenied('Você não pode alterar este agendamento.')
             return
-        if instance.professor_id != user.id:
-            raise PermissionDenied('Você não pode alterar este agendamento.')
-        self._ensure_professor(user)
+
+        if user.usuario.tipo == Usuario.Tipo.PROFESSOR:
+            if instance.professor_id != user.id:
+                raise PermissionDenied('Você não pode alterar este agendamento.')
+            vinculo = _professor_vinculo(instance.ct, user.id)
+            if not vinculo:
+                raise PermissionDenied('Você não está associado a este CT.')
+            if action == 'destroy':
+                if not vinculo.pode_cancelar_treino:
+                    raise PermissionDenied('Você não tem permissão para cancelar agendamentos neste CT.')
+                return
+            if not vinculo.pode_criar_treino:
+                raise PermissionDenied('Você não tem permissão para alterar agendamentos neste CT.')
+            return
+
+        raise PermissionDenied('Você não pode alterar este agendamento.')
 
 
 class TreinoViewSet(viewsets.ModelViewSet):
@@ -322,42 +452,117 @@ class TreinoViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         queryset = super().get_queryset()
+
+        # Regra de plataforma: apenas treinos futuros por padrão
+        hoje = timezone.localdate()
+        data_min_effective = self.request.query_params.get('data_min') or hoje.isoformat()
+        try:
+            # Se o cliente passar uma data anterior a hoje, mantemos hoje (apenas futuros)
+            if data_min_effective < hoje.isoformat():
+                data_min_effective = hoje.isoformat()
+        except Exception:
+            data_min_effective = hoje.isoformat()
+
+        queryset = queryset.filter(data__gte=data_min_effective)
         
         # Filtros opcionais
         ct_id = self.request.query_params.get('ct')
-        data_min = self.request.query_params.get('data_min')
         data_max = self.request.query_params.get('data_max')
         
         if ct_id:
             queryset = queryset.filter(ct_id=ct_id)
-        if data_min:
-            queryset = queryset.filter(data__gte=data_min)
         if data_max:
             queryset = queryset.filter(data__lte=data_max)
-        
+
+        user = self.request.user
+        if user.is_superuser:
+            return queryset
+        if not hasattr(user, 'usuario'):
+            return queryset.none()
+        if user.usuario.tipo == Usuario.Tipo.GERENTE:
+            return queryset.filter(ct__gerente=user)
+        if user.usuario.tipo == Usuario.Tipo.PROFESSOR:
+            return queryset.filter(professor=user)
+        # ALUNO: pode listar treinos futuros para se inscrever
         return queryset
     
     def perform_create(self, serializer):
-        serializer.save(professor=self.request.user)
+        user = self.request.user
+        if user.is_superuser:
+            serializer.save()
+            return
+
+        if not hasattr(user, 'usuario'):
+            raise PermissionDenied('Usuário sem perfil associado.')
+
+        ct = serializer.validated_data.get('ct')
+        professor = serializer.validated_data.get('professor')
+
+        if user.usuario.tipo == Usuario.Tipo.GERENTE:
+            if not ct or ct.gerente_id != user.id:
+                raise PermissionDenied('Apenas o gerente do CT pode criar treinos.')
+            if not professor:
+                raise ValidationError({'professor': 'Informe o professor responsável pelo treino.'})
+            _require_professor_associado(ct, professor.id)
+            serializer.save()
+            return
+
+        if user.usuario.tipo == Usuario.Tipo.PROFESSOR:
+            vinculo = _professor_vinculo(ct, user.id)
+            if not vinculo:
+                raise PermissionDenied('Você não está associado a este CT.')
+            if not vinculo.pode_criar_treino:
+                raise PermissionDenied('Você não tem permissão para criar treinos neste CT.')
+            serializer.save(professor=user)
+            return
+
+        raise PermissionDenied('Somente gerente ou professor podem criar treinos.')
 
     def update(self, request, *args, **kwargs):
         instance = self.get_object()
         self._ensure_manual(instance)
+        self._ensure_can_mutate(instance, request.user, action='update')
         return super().update(request, *args, **kwargs)
 
     def partial_update(self, request, *args, **kwargs):
         instance = self.get_object()
         self._ensure_manual(instance)
+        self._ensure_can_mutate(instance, request.user, action='update')
         return super().partial_update(request, *args, **kwargs)
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
         self._ensure_manual(instance)
+        self._ensure_can_mutate(instance, request.user, action='destroy')
         return super().destroy(request, *args, **kwargs)
 
     def _ensure_manual(self, instance: Treino):
         if instance.agendado:
             raise ValidationError('Treinos oriundos de agendamento devem ser alterados no próprio agendamento.')
+
+    def _ensure_can_mutate(self, instance: Treino, user, action: str):
+        if user.is_superuser:
+            return
+        if not hasattr(user, 'usuario'):
+            raise PermissionDenied('Usuário sem perfil associado.')
+        if user.usuario.tipo == Usuario.Tipo.GERENTE:
+            if instance.ct.gerente_id != user.id:
+                raise PermissionDenied('Você não pode alterar este treino.')
+            return
+        if user.usuario.tipo == Usuario.Tipo.PROFESSOR:
+            if instance.professor_id != user.id:
+                raise PermissionDenied('Você não pode alterar este treino.')
+            vinculo = _professor_vinculo(instance.ct, user.id)
+            if not vinculo:
+                raise PermissionDenied('Você não está associado a este CT.')
+            if action == 'destroy':
+                if not vinculo.pode_cancelar_treino:
+                    raise PermissionDenied('Você não tem permissão para cancelar treinos neste CT.')
+                return
+            if not vinculo.pode_criar_treino:
+                raise PermissionDenied('Você não tem permissão para alterar treinos neste CT.')
+            return
+        raise PermissionDenied('Você não pode alterar este treino.')
     
     @action(detail=True, methods=['get'])
     def inscricoes(self, request, pk=None):
@@ -365,6 +570,11 @@ class TreinoViewSet(viewsets.ModelViewSet):
         Listar todas as inscrições de um treino específico
         """
         treino = self.get_object()
+
+        user = request.user
+        if not (user.is_superuser or treino.professor_id == user.id or _is_gerente_do_ct(user, treino.ct)):
+            raise PermissionDenied('Você não pode ver as inscrições deste treino.')
+
         inscricoes = treino.inscricoes.all()
         serializer = InscricaoSerializer(inscricoes, many=True)
         return Response(serializer.data)
@@ -386,6 +596,20 @@ class InscricaoViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         queryset = super().get_queryset()
+
+        user = self.request.user
+        if user.is_superuser:
+            scoped = queryset
+        elif not hasattr(user, 'usuario'):
+            scoped = queryset.none()
+        elif user.usuario.tipo == Usuario.Tipo.ALUNO:
+            scoped = queryset.filter(aluno=user)
+        elif user.usuario.tipo == Usuario.Tipo.PROFESSOR:
+            scoped = queryset.filter(treino__professor=user)
+        elif user.usuario.tipo == Usuario.Tipo.GERENTE:
+            scoped = queryset.filter(treino__ct__gerente=user)
+        else:
+            scoped = queryset.none()
         
         # Filtros opcionais
         treino_id = self.request.query_params.get('treino')
@@ -393,16 +617,19 @@ class InscricaoViewSet(viewsets.ModelViewSet):
         status_filter = self.request.query_params.get('status')
         
         if treino_id:
-            queryset = queryset.filter(treino_id=treino_id)
+            scoped = scoped.filter(treino_id=treino_id)
         if aluno_id:
-            queryset = queryset.filter(aluno_id=aluno_id)
+            scoped = scoped.filter(aluno_id=aluno_id)
         if status_filter:
-            queryset = queryset.filter(status=status_filter)
+            scoped = scoped.filter(status=status_filter)
         
-        return queryset
+        return scoped
     
     def perform_create(self, serializer):
-        serializer.save(aluno=self.request.user)
+        user = self.request.user
+        if not hasattr(user, 'usuario') or user.usuario.tipo != Usuario.Tipo.ALUNO:
+            raise PermissionDenied('Apenas alunos podem se inscrever em treinos.')
+        serializer.save(aluno=user)
     
     @action(detail=True, methods=['post'])
     def confirmar(self, request, pk=None):
@@ -410,6 +637,8 @@ class InscricaoViewSet(viewsets.ModelViewSet):
         Confirmar inscrição
         """
         inscricao = self.get_object()
+        if not request.user.is_superuser and inscricao.aluno_id != request.user.id:
+            raise PermissionDenied('Você não pode confirmar esta inscrição.')
         inscricao.status = Inscricao.Status.CONFIRMADA
         inscricao.save()
         serializer = self.get_serializer(inscricao)
@@ -421,11 +650,20 @@ class InscricaoViewSet(viewsets.ModelViewSet):
         Cancelar inscrição (deleta do banco para permitir nova inscrição futura)
         """
         inscricao = self.get_object()
+        if not request.user.is_superuser and inscricao.aluno_id != request.user.id:
+            raise PermissionDenied('Você não pode cancelar esta inscrição.')
         inscricao.delete()
         return Response(
             {'message': 'Inscrição cancelada com sucesso'},
             status=status.HTTP_200_OK
         )
+
+    def destroy(self, request, *args, **kwargs):
+        # Mantém consistência: excluir inscrição = cancelar, mas só o aluno dono
+        inscricao = self.get_object()
+        if not request.user.is_superuser and inscricao.aluno_id != request.user.id:
+            raise PermissionDenied('Você não pode cancelar esta inscrição.')
+        return super().destroy(request, *args, **kwargs)
 
 
 class UsuarioViewSet(viewsets.ReadOnlyModelViewSet):
